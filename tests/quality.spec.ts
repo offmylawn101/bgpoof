@@ -299,15 +299,16 @@ test('measure downloaded cutout quality against the supplied reference', async (
 
   expect(uploadMeasurementErrors).toEqual([]);
   expect(uploadBytes).toHaveLength(1);
-  if (process.env.BGPOOF_REQUIRE_GRABCUT === '1') {
+  if (
+    process.env.BGPOOF_REQUIRE_MATTING === '1' ||
+    process.env.BGPOOF_REQUIRE_GRABCUT === '1'
+  ) {
     expect(pipeline).toHaveLength(1);
-    expect(pipeline[0].refinement, 'Initial removal must include GrabCut').toBe(
-      'grabcut',
-    );
-    expect(pipeline[0].serverTiming).toMatch(/grabcut;dur=/);
-  }
-  if (process.env.BGPOOF_REQUIRE_MATTING === '1') {
-    expect(pipeline).toHaveLength(1);
+    expect(
+      pipeline[0].refinement,
+      'Initial removal must include edge matting',
+    ).toBe('matting');
+    expect(pipeline[0].serverTiming).toMatch(/refine;dur=/);
     expect(
       pipeline[0].matteFormat,
       'Initial removal must include edge matting',

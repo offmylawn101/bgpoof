@@ -21,8 +21,8 @@ export default function About() {
         Your browser keeps the original photo to create the final download. PNGs
         within 1,536 pixels per side and 2 MiB are uploaded unchanged; other
         photos are resized and compressed before upload. Cloudflare Images
-        identifies the subject. Our server then automatically checks for missed
-        foreground areas using GrabCut and refines edge transparency when
+        identifies the subject. Our server then automatically refines edge
+        transparency and reduces background color around those edges when
         automatic refinement is enabled. Your browser cleans up remaining
         background color around the edges and creates the final PNG from your
         original photo. The download keeps your original pixel dimensions. The

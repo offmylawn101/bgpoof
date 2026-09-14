@@ -43,7 +43,7 @@ async function withinDeadline(operation, signal) {
 }
 
 // The private service receives only the compact source and mask, never a public
-// image URL. Preserve the Cloudflare result if automatic recovery is unavailable.
+// image URL. Preserve the Cloudflare result if edge refinement is unavailable.
 export async function applyGrabCut(
   image,
   response,

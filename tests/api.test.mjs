@@ -385,7 +385,11 @@ void test('the public response advertises only a recognized private matte protoc
     };
     const response = await handleRemoval(request(), env);
     assert.equal(response.status, 200);
-    assert.equal(response.headers.get('x-bgpoof-refinement'), 'grabcut');
+    assert.equal(
+      response.headers.get('x-bgpoof-refinement'),
+      format === 'delta-rgb-v1' ? 'matting' : 'native',
+    );
+    assert.match(response.headers.get('server-timing'), /refine;dur=/);
     assert.equal(
       response.headers.get('x-bgpoof-matte-format'),
       format === 'delta-rgb-v1' ? format : null,

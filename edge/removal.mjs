@@ -240,8 +240,12 @@ export async function handleRemoval(request, env) {
     return new Response(refined.response.body, {
       headers: {
         'Content-Type': 'image/png',
-        'Server-Timing': `validate;dur=${validated - started}, segment;dur=${segmented - validated}, grabcut;dur=${refined.duration}`,
-        'X-BGPoof-Refinement': refined.applied ? 'grabcut' : 'cloudflare',
+        'Server-Timing': `validate;dur=${validated - started}, segment;dur=${segmented - validated}, refine;dur=${refined.duration}`,
+        'X-BGPoof-Refinement': refined.matting
+          ? 'matting'
+          : refined.applied
+            ? 'native'
+            : 'cloudflare',
         ...(refined.matting ? { 'X-BGPoof-Matte-Format': 'delta-rgb-v1' } : {}),
         'Cache-Control': 'no-store',
         'X-Content-Type-Options': 'nosniff',

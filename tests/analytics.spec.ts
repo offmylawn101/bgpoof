@@ -63,7 +63,7 @@ test('Google Analytics initializes once on each page without blocking the app', 
     page.getByText(/Your photos are not included in analytics/),
   ).toBeVisible();
   await expect(
-    page.getByText(/Our server then automatically checks/),
+    page.getByText(/Our server then automatically refines edge/),
   ).toBeVisible();
   await checkInitialization();
 

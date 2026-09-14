@@ -1,21 +1,11 @@
-# Private automatic foreground recovery
+# Private automatic edge matting
 
-This loopback service runs one 512-pixel, one-iteration GrabCut pass after
-Cloudflare background removal. It uses Cloudflare's confident foreground as
-fixed seeds and low-alpha pixels in a four-pixel border as background seeds.
-Other pixels start as probable foreground. Recovery adds missing foreground
-while preserving Cloudflare's soft alpha (17–238) at outer boundaries and
-spatially supported translucent interiors. Thin uncertain seams inside a
-recovered object stay repaired; a coarse binary mask does not make the
-supported hair or translucent areas opaque.
+This loopback service refines Cloudflare's existing mask near uncertain
+boundaries. It does not run GrabCut or attempt broad foreground recovery.
+Large foreground regions missed by Cloudflare remain missing; the service
+does not add another segmentation model.
 
-Recovery is skipped when all four border bands are nearly one color and the
-provider's mask already agrees with that color separation (at least 98% IoU
-at the 512-pixel working size). This prevents coarse GrabCut expansion from
-adding a flat backdrop to a clean graphic. Partial masks and nonuniform
-backgrounds retain recovery; the color check never replaces the output mask.
-
-At the original working resolution, a narrow automatic trimap then estimates
+At the uploaded image's working resolution, a narrow automatic trimap estimates
 edge opacity and removes background color contamination. Eroded confident
 foreground/background supply nearby local colors. The observed pixel is
 projected onto that color mixture to estimate alpha; weak contrast or a poor
@@ -25,8 +15,9 @@ of evidence must be within 12 pixels; opaque cores, unsupported boundaries,
 and interior translucency remain untouched. Work is capped at 250,000
 candidate edge pixels; no disconnected foreground components are pruned.
 
-These passes can recover missing foreground and improve soft edges, but can
-also restore unwanted background. They do not add another semantic model.
+The service, binding, secret, environment, and test paths retain the historical
+`grabcut`/`GRABCUT` names so existing installations keep working. Their names
+do not indicate that the removed GrabCut algorithm is still used.
 
 Install `server/requirements.txt` in an isolated Python environment. Run:
 
@@ -52,11 +43,17 @@ foreground-color correction, bounded to ±64. Neutral RGB is 128. Corrections
 are zero outside supported soft boundaries (alpha 17–238). Callers must apply
 the alpha to their original photo and may add the correction to its original
 color channels only when this version header is recognized. Preserve the
-original source alpha. `X-Bgpoof-Refinement` reports GrabCut's `recovered` or
-`unchanged` status; `Server-Timing` reports all native processing and encoding
-time. The caller should fall back to
-Cloudflare's result on any service error. Busy returns 503; timeout returns
-504; invalid images return 400.
+original source alpha. `X-Bgpoof-Refinement` reports `matted` when alpha or
+color corrections changed, or `unchanged` otherwise. `Server-Timing` uses
+`matting` for native processing and encoding time. The caller should fall
+back to Cloudflare's result on any service error. Busy returns 503; timeout
+returns 504; invalid images return 400.
+
+The public removal API reports `X-BGPoof-Refinement: matting` for a validated
+native response with the recognized matte/color protocol, `native` for a
+validated native response without that protocol, and `cloudflare` for its
+fallback. Public `Server-Timing` uses `refine` for the private-service round
+trip, alongside `validate` and `segment`.
 
 One persistent native process handles one request at a time, with no job
 queue. A four-second wall-clock deadline kills an overlong native process;

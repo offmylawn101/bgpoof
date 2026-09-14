@@ -8,13 +8,13 @@ This repository contains the MIT-licensed application and optional native refine
 
 The browser retains the original image for final compositing. It uploads one image to `/api/remove-background`, limited to 1,536 pixels per side and 2 MiB. **A PNG already within those limits is uploaded unchanged**, including any embedded metadata, to avoid compression damage to graphics. Other inputs are converted to a resized JPEG at quality 0.94, or 0.8 when needed to fit the upload limit. An uploaded PNG can therefore be the full-resolution original; larger originals remain in the browser while their smaller copies are processed.
 
-The Worker uses the [Cloudflare Images binding](https://developers.cloudflare.com/images/optimization/binding/) for foreground segmentation. If configured, a private server automatically receives the same upload and mask for GrabCut recovery, edge matting, and bounded color corrections. Otherwise, or if that service fails or is busy, processing continues with the Cloudflare mask and a browser edge filter. There is no second browser upload.
+The Worker uses the [Cloudflare Images binding](https://developers.cloudflare.com/images/optimization/binding/) for foreground segmentation. If configured, a private server automatically receives the same upload and mask to refine edge transparency and apply bounded color corrections. Its adjustments stay near existing mask boundaries; GrabCut and broad foreground recovery have been removed. Otherwise, or if that service fails or is busy, processing continues with the Cloudflare mask and a browser edge filter. There is no second browser upload.
 
 The browser applies the result to original pixels and existing transparency, then encodes a PNG at the original dimensions. A smaller preview appears first; the progress indicator continues through the actual processing stages until the downloadable PNG is ready. It does not estimate a percentage for operations that provide none. The completed image replaces the preview for native copying.
 
 Application code does not persist uploads or results. The optional native service processes images in memory and does not log their contents. Cloudflare still processes the uploaded image under its own service terms. Browser working images are released when replaced, cleared, or the page closes. Google Analytics is disabled by default in self-hosted copies; deployments can enable their own analytics. Photo contents are not sent to analytics.
 
-Inputs are limited to 25 MB, 25 megapixels, and 8,192 pixels per side. Five-second completion is a target, not a guarantee: network speed, image size, browser encoding, and provider load affect latency. Refinement can recover missing details but can also restore unwanted background. Hair, glass, shadows, and ambiguous subjects can still need editing. See [server/README.md](server/README.md) for the native algorithm and safeguards.
+Inputs are limited to 25 MB, 25 megapixels, and 8,192 pixels per side. Five-second completion is a target, not a guarantee: network speed, image size, browser encoding, and provider load affect latency. Edge refinement cannot restore large foreground regions missed by Cloudflare. Hair, glass, shadows, and ambiguous subjects can still need editing. See [server/README.md](server/README.md) for the native algorithm and safeguards.
 
 ## Run locally
 
@@ -73,13 +73,15 @@ No separate image API key is needed; Images is accessed through the Worker bindi
 
 ### Optional native refinement
 
-Cloudflare-only removal works without Python, PM2, a tunnel, or `GRABCUT_SECRET`. For automatic native recovery, provision a Linux server with Python, PM2, and `cloudflared`, then install:
+Cloudflare-only removal works without Python, PM2, a tunnel, or `GRABCUT_SECRET`. For automatic native edge matting, provision a Linux server with Python, PM2, and `cloudflared`, then install:
 
 ```sh
 python3 -m venv .venv-grabcut
 .venv-grabcut/bin/pip install -r server/requirements.txt
 npm run test:grabcut
 ```
+
+The `GRABCUT` binding, secret, file paths, PM2 names, and test command retain their historical names for existing installations. They now refer to edge matting only; the GrabCut algorithm has been removed.
 
 Create a private Cloudflare Tunnel and [Workers VPC service](https://developers.cloudflare.com/workers-vpc/configuration/vpc-services/) targeting the server's `127.0.0.1:5137`. Add its binding to `wrangler.local.jsonc`:
 
@@ -89,7 +91,7 @@ Create a private Cloudflare Tunnel and [Workers VPC service](https://developers.
 ]
 ```
 
-Provision `.secrets/grabcut-key` with a random token of at least 32 characters, and `.secrets/tunnel-token` with your tunnel credential. Protect both files with mode 600. After building to refresh the generated configuration, set the same recovery token as a Worker secret and start the services:
+Provision `.secrets/grabcut-key` with a random token of at least 32 characters, and `.secrets/tunnel-token` with your tunnel credential. Protect both files with mode 600. After building to refresh the generated configuration, set the same service token as a Worker secret and start the services:
 
 ```sh
 npm run build
@@ -99,7 +101,7 @@ pm2 save
 npm run deploy
 ```
 
-The PM2 file starts only the recovery service and its QUIC tunnel connector. Adjust its `/usr/local/bin/cloudflared` path if your installation differs. Local development and previews also need `GRABCUT_SECRET` in ignored `.dev.vars`; their remote VPC binding uses your private service. Service changes require restarting `bgpoof-grabcut`; application changes require a Worker deployment. See [server/README.md](server/README.md) for direct startup, authentication, protocol, and resource limits.
+The PM2 file starts only the edge-matting service and its QUIC tunnel connector. Adjust its `/usr/local/bin/cloudflared` path if your installation differs. Local development and previews also need `GRABCUT_SECRET` in ignored `.dev.vars`; their remote VPC binding uses your private service. Service changes require restarting `bgpoof-grabcut`; application changes require a Worker deployment. See [server/README.md](server/README.md) for direct startup, authentication, protocol, and resource limits.
 
 ## Tests and quality measurements
 
@@ -108,7 +110,7 @@ npm run test:api
 npm run test:mask
 ```
 
-These Node checks use mocked bindings and synthetic image data; they need neither Cloudflare credentials nor a running server. `npm run test:grabcut` additionally checks recovery, matting, and process limits in the optional Python environment.
+These Node checks use mocked bindings and synthetic image data; they need neither Cloudflare credentials nor a running server. `npm run test:grabcut` additionally checks edge matting, foreground preservation, and process limits in the optional Python environment.
 
 GitHub Actions runs the application checks and build on Node 22, plus native service tests on Python 3.13, without deployment credentials.
 
@@ -125,8 +127,8 @@ npm test -- tests/quality.spec.ts
 
 The source follows the normal processing flow; the reference stays local. The test validates dimensions, transparency, and upload behavior, measures cutout/reveal timing, foreground overlap, and alpha error, and saves the PNG and `quality-metrics.json` as artifacts. Without both image paths, it skips.
 
-- `BGPOOF_REQUIRE_GRABCUT=1` requires the native service to succeed.
-- `BGPOOF_REQUIRE_MATTING=1` requires its refined matte/color protocol.
+- `BGPOOF_REQUIRE_MATTING=1` requires successful edge matting and its recognized matte/color protocol in the complete removal pipeline.
+- `BGPOOF_REQUIRE_GRABCUT=1` is a compatibility alias for that check; it does not enable or require the removed GrabCut algorithm.
 - `BGPOOF_QUALITY_STRICT=1` requires foreground IoU of at least 0.95 and normalized alpha MAE of at most 0.04.
 - `BGPOOF_QUALITY_MIN_IOU` and `BGPOOF_QUALITY_MAX_MAE` set individual thresholds between 0 and 1. Otherwise scores are measurements without pass/fail thresholds.
 

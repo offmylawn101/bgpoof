@@ -4,7 +4,7 @@ Issues and pull requests are welcome at [offmylawn101/bgpoof](https://github.com
 
 For a bug report, include the browser/device, reproduction steps, expected behavior, and actual result. For removal-quality problems, include both the original and output only when you have permission to share them publicly. A synthetic reproduction is useful when the photo is private. Record whether native refinement was enabled and any measured processing time.
 
-Keep changes focused and preserve upload/paste/drop behavior, original image dimensions and alpha, cancellation, native copying, and completion only after the final PNG is ready. Explain quality and latency tradeoffs with measurements when changing the image pipeline.
+Keep changes focused and preserve upload/paste/drop behavior, original image dimensions and alpha, cancellation, native copying, and completion only after the final PNG is ready. Native refinement adjusts uncertain edges; it does not run GrabCut or attempt broad foreground recovery. Explain quality and latency tradeoffs with measurements when changing the image pipeline.
 
 Before submitting:
 

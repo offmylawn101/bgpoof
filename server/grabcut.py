@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Private, bounded GrabCut refinement service. Images never touch disk."""
+"""Private, bounded edge-matting service. Images never touch disk."""
 
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ def edge_matte(source, alpha):
         1 - background, cv.DIST_L2, 5, labelType=cv.DIST_LABEL_PIXEL)
     candidates = ((foreground_distance <= 12) & (background_distance <= 12)
                   & (foreground == 0) & (background == 0))
-    # Limit work on pathological high-frequency masks. Keep the recovered
+    # Limit work on pathological high-frequency masks. Keep the provider
     # matte unchanged when there is no usable boundary or too many candidates.
     count = np.count_nonzero(candidates)
     if count == 0 or count > 250_000:
@@ -98,33 +98,6 @@ def edge_matte(source, alpha):
 
 class InvalidImage(ValueError):
     pass
-
-
-def has_clean_flat_background(source, alpha):
-    """Avoid growing an already complete mask into a uniform backdrop.
-
-    This is only a recovery gate, never a replacement mask. All four border
-    bands must share a color, and the provider's silhouette must closely agree
-    with color separation. Partial masks and ordinary photographs still need
-    the existing recovery pass.
-    """
-    import numpy as np
-
-    height, width = alpha.shape
-    if min(height, width) < 8:
-        return False
-    band = max(2, round(min(height, width) * 0.015))
-    sides = (source[:band].reshape(-1, 3), source[-band:].reshape(-1, 3),
-             source[band:-band, :band].reshape(-1, 3),
-             source[band:-band, -band:].reshape(-1, 3))
-    color = np.median(np.concatenate(sides), axis=0)
-    if any(np.mean(np.max(np.abs(side.astype(np.int16) - color), axis=1) <= 4) < 0.99
-           for side in sides):
-        return False
-    separated = np.max(np.abs(source.astype(np.int16) - color), axis=2) > 8
-    foreground = alpha >= 128
-    union = np.count_nonzero(separated | foreground)
-    return union > 0 and np.count_nonzero(separated & foreground) / union >= 0.98
 
 
 def image_header(data: bytes) -> tuple[str, int, int]:
@@ -234,42 +207,11 @@ def refine_images(body: bytes) -> tuple[bytes, str]:
     elif source.shape[2] != 3:
         raise InvalidImage("Unsupported source channels")
 
-    scale = min(1.0, 512 / max(width, height))
-    small_size = (max(1, round(width * scale)), max(1, round(height * scale)))
-    small_image = cv.resize(source, small_size, interpolation=cv.INTER_AREA)
+    # Refine only the provider's existing edges. Broad foreground recovery can
+    # restore ground and shadows that segmentation correctly removed.
     baseline = cutout[:, :, 3]
-    small_alpha = cv.resize(baseline, small_size, interpolation=cv.INTER_LINEAR)
-    labels = np.full(small_alpha.shape, cv.GC_PR_FGD, np.uint8)
-    labels[small_alpha >= 239] = cv.GC_FGD
-    border = np.zeros(small_alpha.shape, dtype=bool)
-    border[:4, :] = border[-4:, :] = True
-    border[:, :4] = border[:, -4:] = True
-    background = border & (small_alpha < 16)
-    labels[background] = cv.GC_BGD
-
-    status = "unchanged"
-    alpha = baseline
-    # GrabCut needs samples for both mixtures. Do not invent foreground when
-    # Cloudflare found none or force an image-touching subject into background.
-    if (np.count_nonzero(background) >= 5 and np.count_nonzero(labels == cv.GC_FGD) >= 5
-            and not has_clean_flat_background(small_image, small_alpha)):
-        cv.setRNGSeed(1)
-        cv.grabCut(small_image, labels, None, np.zeros((1, 65), np.float64),
-                   np.zeros((1, 65), np.float64), 1, cv.GC_INIT_WITH_MASK)
-        recovered = np.where((labels == cv.GC_FGD) | (labels == cv.GC_PR_FGD), 255, 0).astype(np.uint8)
-        recovered = cv.resize(recovered, (width, height), interpolation=cv.INTER_LINEAR)
-        alpha = np.maximum(baseline, recovered)
-        # Preserve soft outer boundaries and spatially supported translucent
-        # interiors. Thin uncertain seams inside an opaque recovered object
-        # should stay repaired instead of becoming transparent again.
-        soft = ((baseline > 16) & (baseline < 239)).astype(np.uint8)
-        outer_edge = cv.dilate((alpha <= 16).astype(np.uint8), np.ones((25, 25), np.uint8))
-        soft_interior = cv.morphologyEx(soft, cv.MORPH_OPEN, np.ones((5, 5), np.uint8))
-        preserve = (soft > 0) & ((outer_edge > 0) | (soft_interior > 0))
-        alpha[preserve] = baseline[preserve]
-        status = "recovered" if np.any(alpha > baseline) else "unchanged"
-
-    alpha, delta = edge_matte(source, alpha)
+    alpha, delta = edge_matte(source, baseline)
+    status = "matted" if np.any(alpha != baseline) or np.any(delta) else "unchanged"
     # Versioned signed RGB deltas preserve the browser's full-resolution photo
     # rather than replacing its colors with this compact processing copy.
     output = np.full((height, width, 4), 128, np.uint8)
@@ -489,7 +431,7 @@ class RefinementHandler(BaseHTTPRequestHandler):
             self.reply(200, png, "image/png", {
                 "X-Bgpoof-Refinement": status,
                 "X-Bgpoof-Matte-Format": MATTE_FORMAT,
-                "Server-Timing": f"grabcut;dur={processing_ms:.1f}",
+                "Server-Timing": f"matting;dur={processing_ms:.1f}",
             })
         except InvalidImage:
             self.error(400, "Invalid working images")

@@ -7,13 +7,12 @@ import struct
 import threading
 import time
 import unittest
-from unittest.mock import patch
 
 import cv2 as cv
 import numpy as np
 
 from grabcut import (InvalidImage, MATTE_FORMAT, MAX_BODY_BYTES, MAX_SIDE, NativeProcessor,
-                     RefinementServer, edge_matte, has_clean_flat_background, image_header,
+                     RefinementServer, edge_matte, image_header,
                      native_worker, refine_images, unpack_images)
 
 
@@ -68,16 +67,16 @@ class NativeTests(unittest.TestCase):
             with self.assertRaises(InvalidImage):
                 unpack_images(body)
 
-    def test_recovers_connected_object_preserving_baseline(self):
+    def test_does_not_restore_regions_removed_by_the_provider(self):
         body, baseline = fixture()
         png, status = refine_images(body)
         result = cv.imdecode(np.frombuffer(png, np.uint8), cv.IMREAD_UNCHANGED)
         alpha = result[:, :, 3]
         self.assertEqual(result.shape, (48, 64, 4))
-        self.assertTrue(np.all(alpha >= baseline))
-        self.assertGreater(int(alpha[11, 17]), 127)
+        np.testing.assert_array_equal(alpha, baseline)
+        self.assertEqual(int(alpha[11, 17]), 0)
         self.assertEqual(int(alpha[0, 0]), 0)
-        self.assertEqual(status, "recovered")
+        self.assertEqual(status, "unchanged")
 
     def test_empty_and_opaque_masks_remain_unchanged(self):
         for value in (0, 255):
@@ -96,28 +95,10 @@ class NativeTests(unittest.TestCase):
         cv.rectangle(image, (20, 16), (76, 80), (25, 18, 12), -1)
         cv.rectangle(alpha, (20, 16), (76, 80), 255, -1)
         cv.putText(image, ">", (32, 58), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-        with patch("cv2.grabCut", side_effect=AssertionError("Clean mask must not be grown")):
-            png, status = refine_images(envelope(encode(image), encode(np.dstack((image, alpha)))))
+        png, status = refine_images(envelope(encode(image), encode(np.dstack((image, alpha)))))
         result = cv.imdecode(np.frombuffer(png, np.uint8), cv.IMREAD_UNCHANGED)
         np.testing.assert_array_equal(result[:, :, 3], alpha)
         self.assertEqual(status, "unchanged")
-
-    def test_flat_background_gate_requires_a_complete_mask_and_all_four_sides(self):
-        image = np.full((96, 96, 3), (185, 40, 20), np.uint8)
-        image[20:76, 20:76] = (15, 60, 220)
-        complete = np.zeros((96, 96), np.uint8)
-        complete[20:76, 20:76] = 255
-        self.assertTrue(has_clean_flat_background(image, complete))
-        partial = complete.copy()
-        partial[20:40, 20:76] = 0
-        self.assertFalse(has_clean_flat_background(image, partial))
-        for side in (np.s_[:4, :], np.s_[-4:, :], np.s_[:, :4], np.s_[:, -4:]):
-            textured = image.copy()
-            textured[side] = (60, 130, 70)
-            self.assertFalse(has_clean_flat_background(textured, complete))
-        for shape in ((1, 64), (64, 1), (4, 4)):
-            self.assertFalse(has_clean_flat_background(np.zeros((*shape, 3), np.uint8),
-                                                       np.zeros(shape, np.uint8)))
 
     def test_matting_recovers_soft_edges_and_removes_color_spill(self):
         y, x = np.mgrid[:256, :320]
@@ -164,7 +145,7 @@ class NativeTests(unittest.TestCase):
             np.testing.assert_array_equal(matte, baseline)
             self.assertFalse(np.any(delta))
 
-    def test_grabcut_preserves_interior_translucency(self):
+    def test_preserves_translucency_and_thin_seams(self):
         image = np.full((96, 96, 3), (200, 50, 20), np.uint8)
         image[10:86, 10:86] = (20, 70, 210)
         baseline = np.zeros((96, 96), np.uint8)
@@ -175,7 +156,7 @@ class NativeTests(unittest.TestCase):
         result = cv.imdecode(np.frombuffer(png, np.uint8), cv.IMREAD_UNCHANGED)
         np.testing.assert_array_equal(result[36:60, 36:60, 3], baseline[36:60, 36:60])
         self.assertTrue(np.all(result[36:60, 36:60, :3] == 128))
-        self.assertTrue(np.all(result[24:26, 36:60, 3] == 255))
+        self.assertTrue(np.all(result[24:26, 36:60, 3] == 100))
 
     def test_native_worker_reuse_and_memory_clear(self):
         processor = NativeProcessor()
@@ -186,7 +167,7 @@ class NativeTests(unittest.TestCase):
             for _ in range(2):
                 png, status, milliseconds = processor.run(body)
                 self.assertTrue(png.startswith(b"\x89PNG"))
-                self.assertEqual(status, "recovered")
+                self.assertEqual(status, "unchanged")
                 self.assertGreater(milliseconds, 0)
                 self.assertEqual(processor.process.pid, pid)
             self.assertFalse(any(processor.incoming))
@@ -216,7 +197,7 @@ class NativeTests(unittest.TestCase):
 
 class FakeProcessor:
     def run(self, body):
-        return b"PNG", "recovered", 123.4
+        return b"PNG", "matted", 123.4
 
 
 class HttpTests(unittest.TestCase):
@@ -253,9 +234,9 @@ class HttpTests(unittest.TestCase):
         status, headers, body = self.request("POST", "/refine", fixture()[0], self.headers())
         self.assertEqual((status, body), (200, b"PNG"))
         self.assertEqual(headers["Content-Type"], "image/png")
-        self.assertEqual(headers["X-Bgpoof-Refinement"], "recovered")
+        self.assertEqual(headers["X-Bgpoof-Refinement"], "matted")
         self.assertEqual(headers["X-Bgpoof-Matte-Format"], MATTE_FORMAT)
-        self.assertEqual(headers["Server-Timing"], "grabcut;dur=123.4")
+        self.assertEqual(headers["Server-Timing"], "matting;dur=123.4")
 
     def test_rejects_bad_auth_type_and_images(self):
         self.assertEqual(self.request("POST", "/refine", b"hello")[0], 401)
