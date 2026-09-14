@@ -1,3 +1,5 @@
+import { applyGrabCut } from './grabcut.mjs';
+
 const MAX_BYTES = 2 * 1024 * 1024;
 const MAX_SIDE = 1536;
 const MAX_PIXELS = 2_400_000;
@@ -228,10 +230,18 @@ export async function handleRemoval(request, env) {
       void response.body.cancel().catch(() => {});
       checkAbort(request.signal);
     }
-    return new Response(response.body, {
+    const segmented = performance.now();
+    stage = 'refine';
+    const refined = await withAbort(
+      () => applyGrabCut(image, response, env, request.signal, info),
+      request.signal,
+    );
+    checkAbort(request.signal);
+    return new Response(refined.response.body, {
       headers: {
         'Content-Type': 'image/png',
-        'Server-Timing': `validate;dur=${validated - started}, segment;dur=${performance.now() - validated}`,
+        'Server-Timing': `validate;dur=${validated - started}, segment;dur=${segmented - validated}, grabcut;dur=${refined.duration}`,
+        'X-BGPoof-Refinement': refined.applied ? 'grabcut' : 'cloudflare',
         'Cache-Control': 'no-store',
         'X-Content-Type-Options': 'nosniff',
       },

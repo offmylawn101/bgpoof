@@ -19,6 +19,13 @@ export default defineConfig(async () => {
           main: 'vinext/server/fetch-handler',
           compatibility_flags: ['nodejs_compat'],
           images: { binding: 'IMAGES', remote: true },
+          vpc_services: [
+            {
+              binding: 'GRABCUT',
+              service_id: '01a09d6c-84c8-79a2-8cd3-91138097e103',
+              remote: true,
+            },
+          ],
           ratelimits: [
             {
               name: 'REMOVAL_LIMITER',

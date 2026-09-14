@@ -48,6 +48,8 @@ test('measure downloaded cutout quality against the supplied reference', async (
   const uploadByteSources: string[] = [];
   const uploadMeasurements: Promise<void>[] = [];
   const uploadMeasurementErrors: string[] = [];
+  const pipeline: { refinement: string | null; serverTiming: string | null }[] =
+    [];
   const modelRuntimeRequests: string[] = [];
   const origin = new URL(process.env.BASE_URL || 'http://localhost:3090')
     .origin;
@@ -71,6 +73,10 @@ test('measure downloaded cutout quality against the supplied reference', async (
         (async () => {
           const response = await request.response();
           if (!response) throw new Error('Photo upload has no response.');
+          pipeline.push({
+            refinement: await response.headerValue('x-bgpoof-refinement'),
+            serverTiming: await response.headerValue('server-timing'),
+          });
           const failure = await response.finished();
           if (failure) throw failure;
           const [sizes, headers] = await Promise.all([
@@ -277,6 +283,7 @@ test('measure downloaded cutout quality against the supplied reference', async (
     uploadByteSources,
     uploadMeasurementErrors,
     modelRuntimeRequests,
+    pipeline,
   };
   const metricsPath = testInfo.outputPath('quality-metrics.json');
   await fs.writeFile(metricsPath, JSON.stringify(metrics, null, 2) + '\n');
@@ -288,6 +295,13 @@ test('measure downloaded cutout quality against the supplied reference', async (
 
   expect(uploadMeasurementErrors).toEqual([]);
   expect(uploadBytes).toHaveLength(1);
+  if (process.env.BGPOOF_REQUIRE_GRABCUT === '1') {
+    expect(pipeline).toHaveLength(1);
+    expect(pipeline[0].refinement, 'Initial removal must include GrabCut').toBe(
+      'grabcut',
+    );
+    expect(pipeline[0].serverTiming).toMatch(/grabcut;dur=/);
+  }
   expect(uploadBytes[0]).toBeGreaterThan(0);
   expect(uploadBytes[0]).toBeLessThanOrEqual(2 * 1024 * 1024);
   expect(modelRuntimeRequests).toEqual([]);

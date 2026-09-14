@@ -15,6 +15,21 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
+      <head>
+        {/* oxlint-disable-next-line nextjs/next-script-for-ga -- Preserve the supplied async Google tag in the server-rendered head. */}
+        <script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=G-2L8534ZQ4J"
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-2L8534ZQ4J');`,
+          }}
+        />
+      </head>
       <body>{children}</body>
     </html>
   );

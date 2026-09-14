@@ -171,6 +171,7 @@ test('real API upload, wipe, copyable PNG, drop, clipboard, and bounded photo tr
   const uploadMeasurements: Promise<void>[] = [];
   const uploadMeasurementErrors: string[] = [];
   const performanceBeacons: number[] = [];
+  const analyticsBeacons: number[] = [];
   // Dedicated-worker fetches must be observed at the browser-context level.
   context.on('request', (r) => {
     const url = new URL(r.url());
@@ -228,6 +229,31 @@ test('real API upload, wipe, copyable PNG, drop, clipboard, and bounded photo tr
       !/data:image|iVBORw0KGgo|\/9j\//.test(r.postData() || '')
     ) {
       performanceBeacons.push(bytes);
+      return;
+    }
+    const analyticsEvents = (r.postData() || '')
+      .split('\n')
+      .map((line) => new URLSearchParams(line));
+    const analyticsPayload = [
+      ...url.searchParams.values(),
+      ...analyticsEvents.flatMap((event) => [...event.values()]),
+    ].join('\n');
+    if (
+      r.method() === 'POST' &&
+      url.protocol === 'https:' &&
+      ['www.google-analytics.com', 'region1.google-analytics.com'].includes(
+        url.hostname,
+      ) &&
+      url.pathname === '/g/collect' &&
+      url.searchParams.get('v') === '2' &&
+      url.searchParams.get('tid') === 'G-2L8534ZQ4J' &&
+      analyticsEvents.every((event) => !event.has('tid')) &&
+      bytes < 32768 &&
+      !/image\/|data:image|iVBORw0KGgo|\/9j\/|\.(?:jpe?g|png|webp)(?:$|[\s?&#])/i.test(
+        `${r.headers()['content-type'] || ''}\n${analyticsPayload}`,
+      )
+    ) {
+      analyticsBeacons.push(bytes);
       return;
     }
     requests.push(`${r.method()} ${r.url()}`);
@@ -418,6 +444,7 @@ test('real API upload, wipe, copyable PNG, drop, clipboard, and bounded photo tr
         uploadMeasurementErrors,
         modelRuntimeRequests,
         cloudflarePerformanceBeaconSizes: performanceBeacons,
+        googleAnalyticsBeaconSizes: analyticsBeacons,
       },
       null,
       2,

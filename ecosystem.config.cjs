@@ -1,0 +1,50 @@
+const root = __dirname;
+
+module.exports = {
+  apps: [
+    {
+      name: 'bgpoof-grabcut',
+      cwd: root,
+      script: `${root}/server/grabcut.py`,
+      interpreter: `${root}/.venv-grabcut/bin/python`,
+      env: {
+        BGPOOF_SECRET_FILE: `${root}/.secrets/grabcut-key`,
+        OPENBLAS_NUM_THREADS: '1',
+        OMP_NUM_THREADS: '1',
+        MKL_NUM_THREADS: '1',
+        PYTHONUNBUFFERED: '1',
+      },
+      instances: 1,
+      autorestart: true,
+      exp_backoff_restart_delay: 1000,
+      max_memory_restart: '384M',
+      kill_timeout: 6000,
+      time: true,
+    },
+    {
+      name: 'bgpoof-grabcut-tunnel',
+      cwd: root,
+      script: '/usr/local/bin/cloudflared',
+      interpreter: 'none',
+      args: [
+        'tunnel',
+        '--no-autoupdate',
+        '--protocol',
+        'quic',
+        '--metrics',
+        '127.0.0.1:20243',
+        '--grace-period',
+        '5s',
+        'run',
+        '--token-file',
+        `${root}/.secrets/tunnel-token`,
+      ],
+      instances: 1,
+      autorestart: true,
+      exp_backoff_restart_delay: 1000,
+      max_memory_restart: '256M',
+      kill_timeout: 6000,
+      time: true,
+    },
+  ],
+};

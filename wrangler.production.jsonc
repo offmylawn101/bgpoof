@@ -8,12 +8,19 @@
   "workers_dev": true,
   "preview_urls": false,
   "images": { "binding": "IMAGES", "remote": true },
+  "vpc_services": [
+    {
+      "binding": "GRABCUT",
+      "service_id": "01a09d6c-84c8-79a2-8cd3-91138097e103",
+      "remote": true,
+    },
+  ],
   "ratelimits": [
     {
       "name": "REMOVAL_LIMITER",
       "namespace_id": "2026091401",
-      "simple": { "limit": 10, "period": 60 }
-    }
+      "simple": { "limit": 10, "period": 60 },
+    },
   ],
   "routes": [
     { "pattern": "bgpoof.com", "custom_domain": true },

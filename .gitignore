@@ -47,6 +47,8 @@ next-env.d.ts
 *.tsbuildinfo
 
 .secrets/
+.venv-grabcut/
+__pycache__/
 .dev.vars*
 models/
 .model-tools/
