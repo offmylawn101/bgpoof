@@ -1,0 +1,8 @@
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+  X-Content-Type-Options: nosniff
+/models/*
+  Cache-Control: public, max-age=31536000, immutable
+/runtime/*
+  Cache-Control: public, max-age=31536000, immutable
