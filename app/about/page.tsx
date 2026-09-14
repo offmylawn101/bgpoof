@@ -24,7 +24,12 @@ export default function About() {
         Photos are kept in memory while you use the page, then released when you
         replace them, close the page, or clear the result. The server receives
         ordinary requests for the website and model files, but never your photo.
-        BG Poof does not use analytics or tracking cookies.
+        Cloudflare, our hosting provider, collects cookie-free page-performance
+        metrics. These metrics do not include your photo.{' '}
+        <a href="https://developers.cloudflare.com/web-analytics/about/">
+          About Cloudflare Web Analytics
+        </a>
+        .
       </p>
       <p>
         JPG, PNG, and WebP photos are supported up to 25 MB and 25 megapixels,

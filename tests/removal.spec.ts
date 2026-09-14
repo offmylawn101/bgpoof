@@ -58,9 +58,23 @@ test('real upload, wipe, comparison, PNG, repeat drop, clipboard, and privacy', 
 }, testInfo) => {
   const requests: string[] = [],
     errors: string[] = [];
+  const performanceBeacons: number[] = [];
   page.on('request', (r) => {
-    if (!['GET', 'HEAD'].includes(r.method()))
-      requests.push(`${r.method()} ${r.url()}`);
+    if (['GET', 'HEAD'].includes(r.method())) return;
+    const url = new URL(r.url());
+    const body = r.postData() || '';
+    if (
+      r.method() === 'POST' &&
+      url.origin ===
+        new URL(process.env.BASE_URL || 'http://localhost:3090').origin &&
+      url.pathname === '/cdn-cgi/rum' &&
+      body.length < 32768 &&
+      !/data:image|iVBORw0KGgo|\/9j\//.test(body)
+    ) {
+      performanceBeacons.push(body.length);
+      return;
+    }
+    requests.push(`${r.method()} ${r.url()}`);
   });
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/');
@@ -203,7 +217,8 @@ test('real upload, wipe, comparison, PNG, repeat drop, clipboard, and privacy', 
         personStats,
         pasted,
         worstMainThreadIntervalMs: Math.max(...timings),
-        nonReadRequests: requests,
+        unexpectedWriteRequests: requests,
+        cloudflarePerformanceBeaconSizes: performanceBeacons,
       },
       null,
       2,
@@ -220,21 +235,17 @@ test('invalid files, cancellation, failed model download, and retry', async ({
     'data-ready',
     'true',
   );
-  await page
-    .getByLabel('Upload photo', { exact: true })
-    .setInputFiles({
-      name: 'wrong.txt',
-      mimeType: 'text/plain',
-      buffer: Buffer.from('not an image'),
-    });
+  await page.getByLabel('Upload photo', { exact: true }).setInputFiles({
+    name: 'wrong.txt',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('not an image'),
+  });
   await expect(page.getByRole('alert')).toContainText('JPG, PNG, or WebP');
-  await page
-    .getByLabel('Upload photo', { exact: true })
-    .setInputFiles({
-      name: 'corrupt.png',
-      mimeType: 'image/png',
-      buffer: Buffer.from('broken image'),
-    });
+  await page.getByLabel('Upload photo', { exact: true }).setInputFiles({
+    name: 'corrupt.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from('broken image'),
+  });
   await expect(page.getByRole('alert')).toBeVisible();
   await page.route('**/models/**', (route) => route.abort());
   await page.getByLabel('Upload photo', { exact: true }).setInputFiles(fixture);

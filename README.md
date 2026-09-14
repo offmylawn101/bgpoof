@@ -1,6 +1,6 @@
 # BG Poof
 
-Account-free, browser-only photo background removal. Upload, drop anywhere, or paste a JPG/PNG/WebP. Processing automatically starts in a dedicated Worker; a two-second right-to-left cubic wipe reveals a transparent full-resolution PNG. Comparison is keyboard and touch accessible. No photo API, credentials, analytics, tracking, or image storage.
+Account-free, browser-only photo background removal. Upload, drop anywhere, or paste a JPG/PNG/WebP. Processing automatically starts in a dedicated Worker; a two-second right-to-left cubic wipe reveals a transparent full-resolution PNG. Comparison is keyboard and touch accessible. No photo API, application credentials, tracking cookies, or image storage. Cloudflare automatically collects cookie-free page-performance metrics on the custom domain; these do not include photo contents.
 
 ## Run
 
