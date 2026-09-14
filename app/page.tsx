@@ -29,6 +29,7 @@ import { registerDownloadTool } from '@/lib/webmcp';
 
 type Photo = {
   original: string;
+  preview?: string;
   result?: string;
   name: string;
   width: number;
@@ -70,6 +71,8 @@ export default function Home() {
       URL.revokeObjectURL(previous.original);
     if (previous?.result && previous.result !== next?.result)
       URL.revokeObjectURL(previous.result);
+    if (previous?.preview && previous.preview !== next?.preview)
+      URL.revokeObjectURL(previous.preview);
     photoRef.current = next;
     setPhoto(next);
   }, []);
@@ -106,10 +109,10 @@ export default function Home() {
       setCompare(100);
       setProgress({ message: 'Preparing your photo…', value: null });
       let original = '';
+      let bitmap: ImageBitmap | undefined;
       try {
-        const bitmap = await createImageBitmap(file);
+        bitmap = await createImageBitmap(file);
         const { width, height } = bitmap;
-        bitmap.close();
         if (id !== operation.current) return;
         if (width * height > 25_000_000 || width > 8192 || height > 8192) {
           throw new Error(
@@ -117,22 +120,33 @@ export default function Home() {
           );
         }
         original = URL.createObjectURL(file);
-        const current: Photo = { original, name: file.name, width, height };
+        let current: Photo = { original, name: file.name, width, height };
         replacePhoto(current);
-        const blob = await removePhotoBackground(file, abort.signal, (next) => {
-          if (id === operation.current) setProgress(next);
-        });
+        const blob = await removePhotoBackground(
+          bitmap,
+          abort.signal,
+          (next) => {
+            if (id === operation.current) setProgress(next);
+          },
+          (preview) => {
+            if (id !== operation.current) return;
+            current = { ...current, preview: URL.createObjectURL(preview) };
+            replacePhoto(current);
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+              setCompare(0);
+            } else {
+              setRevealing(true);
+              animateReveal(animationFrame, setCompare, () =>
+                setRevealing(false),
+              );
+            }
+          },
+        );
         if (id !== operation.current) return;
         const result = URL.createObjectURL(blob);
         replacePhoto({ ...current, result });
         setBusy(false);
         resultHeading.current?.focus();
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-          setCompare(0);
-          return;
-        }
-        setRevealing(true);
-        animateReveal(animationFrame, setCompare, () => setRevealing(false));
       } catch (cause) {
         if (id !== operation.current || abort.signal.aborted) return;
         setBusy(false);
@@ -141,6 +155,9 @@ export default function Home() {
             ? cause.message
             : 'We couldn’t read this photo. Try another JPG, PNG, or WebP.',
         );
+      } finally {
+        // A transferred bitmap is already detached; also close on validation/cancellation.
+        bitmap?.close();
       }
     },
     [replacePhoto],
@@ -222,6 +239,8 @@ export default function Home() {
         URL.revokeObjectURL(photoRef.current.original);
       if (photoRef.current?.result)
         URL.revokeObjectURL(photoRef.current.result);
+      if (photoRef.current?.preview)
+        URL.revokeObjectURL(photoRef.current.preview);
     },
     [],
   );
@@ -319,7 +338,7 @@ export default function Home() {
                 JPG, PNG, WebP · up to 25 MB / 25 MP
               </span>
               <div className="privacy-inline">
-                <ShieldCheck size={16} /> Your photos stay on your device.
+                <ShieldCheck size={16} /> Processed securely by Cloudflare.
               </div>
             </div>
             <div className="demo-section">
@@ -357,7 +376,9 @@ export default function Home() {
                 <span className="eyebrow">YOUR PHOTO, FRONT AND CENTER</span>
                 <h1 id="result-heading" ref={resultHeading} tabIndex={-1}>
                   {busy
-                    ? 'A little disappearing act…'
+                    ? photo.preview
+                      ? 'Background removed.'
+                      : 'A little disappearing act…'
                     : photo.result
                       ? 'Background removed.'
                       : 'Let’s try that again.'}
@@ -376,7 +397,7 @@ export default function Home() {
               <div className="result-preview">
                 <Comparison
                   original={photo.original}
-                  result={photo.result}
+                  result={photo.preview ?? photo.result}
                   value={compare}
                   onChange={(value) => {
                     cancelAnimationFrame(animationFrame.current);
@@ -385,7 +406,7 @@ export default function Home() {
                   }}
                   label="Your photo before and after"
                   revealing={revealing}
-                  processing={busy}
+                  processing={busy && !photo.preview}
                   width={photo.width}
                   height={photo.height}
                 />
@@ -406,8 +427,7 @@ export default function Home() {
                       className="removal-progress"
                     />
                     <p className="small-copy">
-                      The first photo takes longer while the background remover
-                      downloads. Next time, it’s ready to go.
+                      Just a moment. Your full-resolution PNG is on its way.
                     </p>
                     <Button
                       variant="outline"
@@ -487,7 +507,7 @@ export default function Home() {
                   </>
                 )}
                 <div className="privacy-inline">
-                  <ShieldCheck size={16} /> Processed on your device
+                  <ShieldCheck size={16} /> No account. No watermark.
                 </div>
               </aside>
             </div>
@@ -515,7 +535,7 @@ export default function Home() {
       <footer className="site-footer">
         <span>Just your photo. Nothing extra.</span>
         <span>
-          Private by design <span className="footer-dot">·</span> No watermarks{' '}
+          Free to use <span className="footer-dot">·</span> No watermarks{' '}
           <span className="footer-dot">·</span> No sign-up
         </span>
         <a href="/about">
@@ -634,7 +654,7 @@ function animateReveal(
 ) {
   const beginning = performance.now();
   function tick(now: number) {
-    const fraction = Math.min(1, (now - beginning) / 2000);
+    const fraction = Math.min(1, (now - beginning) / 800);
     const eased =
       fraction < 0.5 ? 4 * fraction ** 3 : 1 - (-2 * fraction + 2) ** 3 / 2;
     update(100 * (1 - eased));

@@ -3,14 +3,14 @@ import type { RemovalProgress } from './removal';
 type WorkerReply =
   | { type: 'progress'; message: string; value: number | null }
   | { type: 'result'; blob: Blob }
+  | { type: 'preview'; blob: Blob }
   | { type: 'error'; message: string };
-let worker: Worker | null = null;
-let releaseTimer: ReturnType<typeof setTimeout> | undefined;
 
 export function processPhoto(
-  file: File,
+  bitmap: ImageBitmap,
   signal: AbortSignal,
   progress: (next: RemovalProgress) => void,
+  preview: (blob: Blob) => void,
 ): Promise<Blob> {
   if (typeof Worker === 'undefined' || typeof OffscreenCanvas === 'undefined') {
     return Promise.reject(
@@ -19,9 +19,7 @@ export function processPhoto(
       ),
     );
   }
-  clearTimeout(releaseTimer);
-  worker ??= new Worker('/removal.worker.mjs', { type: 'module' });
-  const current = worker;
+  const current = new Worker('/removal.worker.mjs', { type: 'module' });
   return new Promise((resolve, reject) => {
     const cleanup = () => {
       clearTimeout(timeout);
@@ -31,7 +29,6 @@ export function processPhoto(
     };
     const destroy = () => {
       current.terminate();
-      if (worker === current) worker = null;
     };
     const cancel = () => {
       cleanup();
@@ -43,10 +40,10 @@ export function processPhoto(
       destroy();
       reject(
         new Error(
-          'This photo is taking too long on your device. Close other tabs and try a smaller photo.',
+          'This photo is taking longer than usual. Check your connection and try again.',
         ),
       );
-    }, 180_000);
+    }, 20_000);
     signal.addEventListener('abort', cancel, { once: true });
     current.onerror = (event) => {
       console.error('Background removal worker failed:', event.message);
@@ -61,10 +58,10 @@ export function processPhoto(
     current.onmessage = ({ data }: MessageEvent<WorkerReply>) => {
       if (data.type === 'progress')
         progress({ message: data.message, value: data.value });
+      else if (data.type === 'preview') preview(data.blob);
       else if (data.type === 'result') {
         cleanup();
-        // Keep the model ready for another photo, then return memory to the device.
-        releaseTimer = setTimeout(destroy, 120_000);
+        destroy();
         resolve(data.blob);
       } else {
         cleanup();
@@ -73,6 +70,14 @@ export function processPhoto(
       }
     };
     if (signal.aborted) cancel();
-    else current.postMessage({ file });
+    else {
+      try {
+        current.postMessage({ bitmap }, [bitmap]);
+      } catch (error) {
+        cleanup();
+        destroy();
+        reject(error);
+      }
+    }
   });
 }

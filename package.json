@@ -8,17 +8,17 @@
   "scripts": {
     "dev": "vinext dev",
     "build": "vinext build",
-    "start": "wrangler dev --config wrangler.production.jsonc",
+    "start": "wrangler dev --config wrangler.production.jsonc --local-upstream localhost",
     "lint": "oxlint",
     "format": "oxfmt",
     "assets": "node scripts/prepare-assets.mjs",
-    "model:download": "node scripts/download-model.mjs",
     "predev": "npm run assets",
     "prebuild": "npm run assets",
     "check": "tsc --noEmit && oxlint",
     "test": "playwright test",
     "postbuild": "node scripts/prepare-cloudflare.mjs",
-    "deploy": "npm run check && npm run build && wrangler deploy --config wrangler.production.jsonc"
+    "deploy": "npm run check && npm run test:api && npm run build && wrangler deploy --config wrangler.production.jsonc",
+    "test:api": "node --test tests/api.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",
@@ -30,7 +30,6 @@
     "embla-carousel-react": "8.5.2",
     "input-otp": "1.4.2",
     "lucide-react": "1.31.0",
-    "onnxruntime-web": "1.21.0",
     "react": "19.2.6",
     "react-day-picker": "9.8.1",
     "react-dom": "19.2.6",

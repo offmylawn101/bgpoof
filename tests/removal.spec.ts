@@ -1,14 +1,18 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs/promises';
 
+test.use({ serviceWorkers: 'block' });
+
 const fixture = 'public/example.jpg';
 async function finished(page: import('@playwright/test').Page) {
   await expect(page.getByRole('link', { name: 'Download PNG' })).toBeVisible({
     timeout: 120_000,
   });
+  const readyAt = Date.now();
   await expect(page.locator('.photo-comparison')).not.toHaveClass(/revealing/, {
     timeout: 5000,
   });
+  return { readyAt, revealedAt: Date.now() };
 }
 async function pngStats(page: import('@playwright/test').Page) {
   const url = await page
@@ -52,26 +56,78 @@ async function pngStats(page: import('@playwright/test').Page) {
   }, url);
 }
 
-test('real upload, wipe, comparison, PNG, repeat drop, clipboard, and privacy', async ({
+test('real API upload, wipe, comparison, PNG, drop, clipboard, and bounded photo transfer', async ({
   page,
   context,
 }, testInfo) => {
   const requests: string[] = [],
     errors: string[] = [];
+  const modelRuntimeRequests: string[] = [];
+  const photoUploads: {
+    bytes: number;
+    contentType: string;
+    measurement: string;
+  }[] = [];
+  const uploadMeasurements: Promise<void>[] = [];
+  const uploadMeasurementErrors: string[] = [];
   const performanceBeacons: number[] = [];
-  page.on('request', (r) => {
-    if (['GET', 'HEAD'].includes(r.method())) return;
+  // Dedicated-worker fetches must be observed at the browser-context level.
+  context.on('request', (r) => {
     const url = new URL(r.url());
-    const body = r.postData() || '';
+    if (
+      /\/(models|runtime)\//.test(url.pathname) ||
+      /\.(onnx|wasm)$/.test(url.pathname)
+    ) {
+      modelRuntimeRequests.push(r.url());
+    }
+    if (['GET', 'HEAD'].includes(r.method())) return;
+    const sameOrigin =
+      url.origin ===
+      new URL(process.env.BASE_URL || 'http://localhost:3090').origin;
+    const bytes = r.postDataBuffer()?.length || 0;
     if (
       r.method() === 'POST' &&
-      url.origin ===
-        new URL(process.env.BASE_URL || 'http://localhost:3090').origin &&
-      url.pathname === '/cdn-cgi/rum' &&
-      body.length < 32768 &&
-      !/data:image|iVBORw0KGgo|\/9j\//.test(body)
+      sameOrigin &&
+      url.pathname === '/api/remove-background'
     ) {
-      performanceBeacons.push(body.length);
+      const upload = {
+        bytes: 0,
+        contentType: r.headers()['content-type'] || '',
+        measurement: 'pending',
+      };
+      photoUploads.push(upload);
+      uploadMeasurements.push(
+        (async () => {
+          const response = await r.response();
+          if (!response) throw new Error('Photo upload has no response.');
+          const failure = await response.finished();
+          if (failure) throw failure;
+          const [sizes, headers] = await Promise.all([
+            r.sizes(),
+            r.allHeaders(),
+          ]);
+          // Chromium omits Blob bodies from postDataBuffer and sometimes sizes().
+          // Its actual Content-Length matched bytes received by an HTTP test server.
+          upload.bytes =
+            sizes.requestBodySize || Number(headers['content-length'] || 0);
+          upload.measurement = sizes.requestBodySize
+            ? 'request.sizes'
+            : 'content-length';
+          upload.contentType = headers['content-type'] || upload.contentType;
+        })().catch((error) => {
+          uploadMeasurementErrors.push(String(error));
+        }),
+      );
+      return;
+    }
+    if (
+      r.method() === 'POST' &&
+      sameOrigin &&
+      url.pathname === '/cdn-cgi/rum' &&
+      bytes < 32768 &&
+      !/data:image|iVBORw0KGgo|\/9j\//.test(r.postData() || '')
+    ) {
+      performanceBeacons.push(bytes);
       return;
     }
     requests.push(`${r.method()} ${r.url()}`);
@@ -104,8 +160,12 @@ test('real upload, wipe, comparison, PNG, repeat drop, clipboard, and privacy', 
   });
   const started = Date.now();
   await page.getByLabel('Upload photo', { exact: true }).setInputFiles(fixture);
-  await finished(page);
-  const firstMs = Date.now() - started;
+  const first = await finished(page);
+  const firstTiming = {
+    cutoutReadyMs: first.readyAt - started,
+    revealCompleteMs: first.revealedAt - started,
+  };
+  expect(photoUploads).toHaveLength(1);
   const stats = await pngStats(page);
   expect(stats).toMatchObject({
     width: 1600,
@@ -151,7 +211,7 @@ test('real upload, wipe, comparison, PNG, repeat drop, clipboard, and privacy', 
   expect(timings.length).toBeGreaterThan(20);
   expect(Math.max(...timings)).toBeLessThan(1500);
 
-  // Real photo through the same global drop entrypoint, using a warm session.
+  // A second real photo through the global drop entrypoint.
   const person = await fs.readFile('tests/person.jpg');
   const secondStart = Date.now();
   await page.evaluate(
@@ -176,8 +236,12 @@ test('real upload, wipe, comparison, PNG, repeat drop, clipboard, and privacy', 
   await expect(
     page.getByRole('heading', { name: 'A little disappearing act…' }),
   ).toBeVisible();
-  await finished(page);
-  const secondMs = Date.now() - secondStart;
+  const second = await finished(page);
+  const secondTiming = {
+    cutoutReadyMs: second.readyAt - secondStart,
+    revealCompleteMs: second.revealedAt - secondStart,
+  };
+  expect(photoUploads).toHaveLength(2);
   const personStats = await pngStats(page);
   expect(personStats).toMatchObject({
     width: 960,
@@ -206,18 +270,31 @@ test('real upload, wipe, comparison, PNG, repeat drop, clipboard, and privacy', 
   const pasted = await pngStats(page);
   expect(pasted).toMatchObject({ width: 1600, height: 1200, corner: 0 });
   expect(pasted.opaque).toBeGreaterThan(0.1);
+  expect(photoUploads.length).toBeGreaterThanOrEqual(2);
+  expect(photoUploads.length).toBeLessThanOrEqual(3);
+  await Promise.all(uploadMeasurements);
+  expect(uploadMeasurementErrors).toEqual([]);
+  for (const upload of photoUploads) {
+    expect(upload.bytes).toBeGreaterThan(0);
+    expect(upload.bytes).toBeLessThanOrEqual(2 * 1024 * 1024);
+    expect(upload.contentType).toMatch(/^image\/(jpeg|png|webp)(;|$)/);
+  }
+  expect(modelRuntimeRequests).toEqual([]);
   expect(requests).toEqual([]);
   expect(errors).toEqual([]);
   await testInfo.attach('runtime-evidence', {
     body: JSON.stringify(
       {
-        firstMs,
-        secondMs,
+        firstTiming,
+        secondTiming,
         stats,
         personStats,
         pasted,
         worstMainThreadIntervalMs: Math.max(...timings),
         unexpectedWriteRequests: requests,
+        photoUploads,
+        uploadMeasurementErrors,
+        modelRuntimeRequests,
         cloudflarePerformanceBeaconSizes: performanceBeacons,
       },
       null,
@@ -227,9 +304,46 @@ test('real upload, wipe, comparison, PNG, repeat drop, clipboard, and privacy', 
   });
 });
 
-test('invalid files, cancellation, failed model download, and retry', async ({
+test('invalid files, API error, retry, and cancellation ignore a late result', async ({
   page,
+  context,
 }) => {
+  let apiCalls = 0;
+  let releaseLateResult!: () => void;
+  const lateResult = new Promise<void>((resolve) => {
+    releaseLateResult = resolve;
+  });
+  let finishLateResult!: () => void;
+  const lateResultFinished = new Promise<void>((resolve) => {
+    finishLateResult = resolve;
+  });
+  const cutout = await fs.readFile('public/example-cutout.png');
+  const routePattern = '**/api/remove-background';
+  await context.route(routePattern, async (route) => {
+    apiCalls++;
+    if (apiCalls === 1) {
+      await route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: 'The remover is busy. Please try again shortly.',
+        }),
+      });
+      return;
+    }
+    await lateResult;
+    try {
+      await route.fulfill({
+        status: 200,
+        contentType: 'image/png',
+        body: cutout,
+      });
+    } catch {
+      // Terminating the dedicated worker may already have closed its request.
+    } finally {
+      finishLateResult();
+    }
+  });
   await page.goto('/');
   await expect(page.locator('.site-shell')).toHaveAttribute(
     'data-ready',
@@ -247,13 +361,14 @@ test('invalid files, cancellation, failed model download, and retry', async ({
     buffer: Buffer.from('broken image'),
   });
   await expect(page.getByRole('alert')).toBeVisible();
-  await page.route('**/models/**', (route) => route.abort());
+  expect(apiCalls).toBe(0);
   await page.getByLabel('Upload photo', { exact: true }).setInputFiles(fixture);
-  await expect(page.getByRole('alert')).toContainText('couldn’t', {
+  await expect(page.getByRole('alert')).toContainText('busy', {
     timeout: 30_000,
   });
-  await page.unroute('**/models/**');
+  expect(apiCalls).toBe(1);
   await page.getByRole('button', { name: 'Retry removal' }).click();
+  await expect.poll(() => apiCalls).toBe(2);
   await expect(
     page.getByRole('button', { name: 'Cancel', exact: true }),
   ).toBeVisible();
@@ -261,6 +376,11 @@ test('invalid files, cancellation, failed model download, and retry', async ({
   await expect(
     page.getByRole('heading', { name: 'Remove the background.' }),
   ).toBeVisible();
+  releaseLateResult();
+  await lateResultFinished;
+  await context.unroute(routePattern);
+  await expect(page.getByRole('link', { name: 'Download PNG' })).toHaveCount(0);
+  await expect(page.getByRole('alert')).toHaveCount(0);
   await page.getByRole('button', { name: 'Try this photo' }).click();
   await finished(page);
   await expect(page.getByRole('alert')).toHaveCount(0);
@@ -275,6 +395,7 @@ test('mobile layout, touch comparison, and reduced motion', async ({
     hasTouch: true,
     deviceScaleFactor: 1,
     reducedMotion: 'reduce',
+    serviceWorkers: 'block',
   });
   const page = await context.newPage();
   await page.goto(process.env.BASE_URL || 'http://localhost:3090');

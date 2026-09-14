@@ -1,11 +1,5 @@
 import ts from 'typescript';
-import {
-  mkdir,
-  copyFile,
-  readFile,
-  writeFile,
-  readdir,
-} from 'node:fs/promises';
+import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 // Compile this self-contained Worker separately so dev transforms cannot inject DOM-only code.
 const worker = await readFile('lib/removal.worker.ts', 'utf8');
@@ -18,18 +12,6 @@ await writeFile(
     },
   }).outputText,
 );
-const destination = 'public/runtime/ort-1.21.0';
-await mkdir(destination, { recursive: true });
-for (const filename of [
-  'ort.wasm.min.mjs',
-  'ort-wasm-simd-threaded.mjs',
-  'ort-wasm-simd-threaded.wasm',
-]) {
-  await copyFile(
-    `node_modules/onnxruntime-web/dist/${filename}`,
-    `${destination}/${filename}`,
-  );
-}
 await mkdir('public/source', { recursive: true });
 const notices = [];
 for (const name of [
@@ -46,8 +28,6 @@ for (const name of [
   'clsx',
   'class-variance-authority',
   'tailwind-merge',
-  'onnxruntime-common',
-  'onnxruntime-web',
 ]) {
   const root = `node_modules/${name}`;
   for (const file of await readdir(root))
@@ -60,6 +40,7 @@ await writeFile('public/licenses/dependencies.txt', notices.join('\n'));
 const files = [
   'app',
   'lib',
+  'edge',
   'components',
   'hooks',
   'scripts',
@@ -84,4 +65,6 @@ const files = [
   'LICENSE',
 ];
 execFileSync('tar', ['-czf', 'public/source/bgpoof-source.tar.gz', ...files]);
-console.log('Prepared matching ONNX runtime assets and downloadable source.');
+console.log(
+  'Prepared photo Worker, dependency notices and downloadable source.',
+);

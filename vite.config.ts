@@ -15,8 +15,17 @@ export default defineConfig(async () => {
         viteEnvironment: { name: 'rsc', childEnvironments: ['ssr'] },
         config: {
           name: 'removebg',
+          account_id: '78d07811c5de3b3b08e4e8b9a01301ec',
           main: 'vinext/server/fetch-handler',
           compatibility_flags: ['nodejs_compat'],
+          images: { binding: 'IMAGES', remote: true },
+          ratelimits: [
+            {
+              name: 'REMOVAL_LIMITER',
+              namespace_id: '2026091402',
+              simple: { limit: 10, period: 60 },
+            },
+          ],
         },
       }),
     ],

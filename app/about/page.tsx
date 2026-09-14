@@ -8,24 +8,22 @@ export default function About() {
       <a href="/">← Back to BG Poof</a>
       <h1>Your photos stay yours.</h1>
       <p>
-        BG Poof removes photo backgrounds on your device. Your photo is never
-        sent to our server. There are no accounts, watermarks, or paid download
-        tiers.
+        BG Poof removes photo backgrounds without accounts, watermarks, or paid
+        download tiers. Your browser sends a compact copy of your photo to
+        Cloudflare for background removal. BG Poof does not store your photos.
       </p>
       <h2>How it works</h2>
       <p>
-        The first time you use BG Poof, your browser downloads about 100 MB of
-        background-removal software and model files. It saves the model locally
-        when browser storage is available, so later visits can reuse it.
-        Processing speed depends on your device. Clearing site data removes the
-        cached model.
+        Your original photo stays in your browser. Cloudflare Images identifies
+        the subject in the compact copy, then your browser uses the returned
+        transparency mask to create a PNG from the original photo. The download
+        keeps your original pixel dimensions.
       </p>
       <p>
-        Photos are kept in memory while you use the page, then released when you
-        replace them, close the page, or clear the result. The server receives
-        ordinary requests for the website and model files, but never your photo.
-        Cloudflare, our hosting provider, collects cookie-free page-performance
-        metrics. These metrics do not include your photo.{' '}
+        Working images are held in browser memory while you use the page. You
+        can replace them, clear the result, or close the page when you are done.
+        Cloudflare also hosts the website and collects cookie-free
+        page-performance metrics. These metrics do not include your photo.{' '}
         <a href="https://developers.cloudflare.com/web-analytics/about/">
           About Cloudflare Web Analytics
         </a>
@@ -33,34 +31,29 @@ export default function About() {
       </p>
       <p>
         JPG, PNG, and WebP photos are supported up to 25 MB and 25 megapixels,
-        with a maximum side length of 8,192 pixels. Downloads retain the
-        original pixel dimensions. Fine hair, glass, shadows, and busy
-        backgrounds can need additional editing; this is an independent
-        background remover and results will differ from remove.bg.
+        with a maximum side length of 8,192 pixels. We aim to have a result
+        ready within five seconds, but connection speed, image size, and service
+        load affect the wait. Fine hair, glass, shadows, and busy backgrounds
+        can need additional editing; results will differ from remove.bg.
       </p>
       <h2>Open source & credits</h2>
       <p>
         <a href="/source/bgpoof-source.tar.gz">Download BG Poof’s source</a>.
-        The application code is available under the MIT license. Model files can
-        be retrieved using the included download script.
+        The application code is available under the MIT license.
       </p>
       <p>
         Background removal uses{' '}
-        <a href="https://huggingface.co/imgly/isnet-general-onnx">
-          IMG.LY’s IS-Net ONNX model
+        <a href="https://developers.cloudflare.com/images/optimization/features/#segment">
+          Cloudflare Images foreground segmentation
         </a>
-        , published with MIT license metadata, based on{' '}
-        <a href="https://github.com/xuebinqin/DIS">
-          Highly Accurate Dichotomous Image Segmentation (DIS)
-        </a>{' '}
-        by Xuebin Qin and collaborators.{' '}
-        <a href="/licenses/DIS-Apache-2.0.txt">Upstream Apache 2.0 license</a>.
+        , accessed through its{' '}
+        <a href="https://developers.cloudflare.com/images/optimization/binding/">
+          Workers binding
+        </a>
+        .
       </p>
       <p>
-        Inference uses Microsoft’s{' '}
-        <a href="https://onnxruntime.ai/">ONNX Runtime</a>.{' '}
-        <a href="/licenses/onnxruntime-MIT.txt">MIT license</a>. The interface
-        also uses React, Lucide, and Base UI;{' '}
+        The interface uses React, Lucide, and Base UI;{' '}
         <a href="/licenses/dependencies.txt">dependency notices</a> are included
         in the source package.
       </p>
@@ -71,7 +64,8 @@ export default function About() {
         </a>
         , used under the{' '}
         <a href="https://unsplash.com/license">Unsplash License</a>. Its example
-        cutout was processed with this site’s own engine.
+        cutout was processed with Cloudflare Images and this site’s browser
+        compositing.
       </p>
       <p>
         BG Poof is independent and is not affiliated with remove.bg or Canva.

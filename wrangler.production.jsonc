@@ -7,6 +7,14 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "preview_urls": false,
+  "images": { "binding": "IMAGES", "remote": true },
+  "ratelimits": [
+    {
+      "name": "REMOVAL_LIMITER",
+      "namespace_id": "2026091401",
+      "simple": { "limit": 10, "period": 60 }
+    }
+  ],
   "routes": [
     { "pattern": "bgpoof.com", "custom_domain": true },
     { "pattern": "www.bgpoof.com", "custom_domain": true },
