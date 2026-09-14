@@ -28,7 +28,7 @@
     "postbuild": "node scripts/prepare-cloudflare.mjs",
     "deploy": "npm run check && npm run test:api && npm run test:mask && npm run build && npm run test:seo && wrangler deploy --config wrangler.production.jsonc",
     "test:seo": "playwright test --config playwright.seo.config.ts",
-    "test:api": "node --test tests/api.test.mjs tests/grabcut.test.mjs",
+    "test:api": "node --test tests/api.test.mjs tests/grabcut.test.mjs tests/stats.test.mjs",
     "test:mask": "node --test tests/refine-mask.test.mjs",
     "test:grabcut": ".venv-grabcut/bin/python -m unittest discover -s server -v"
   },

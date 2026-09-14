@@ -5,7 +5,7 @@ const previewUrl = 'http://127.0.0.1:3092';
 
 export default defineConfig({
   ...base,
-  testMatch: '**/seo.spec.ts',
+  testMatch: ['**/seo.spec.ts', '**/stats.spec.ts'],
   use: { ...base.use, baseURL: process.env.BASE_URL || previewUrl },
   webServer: process.env.BASE_URL
     ? undefined

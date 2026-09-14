@@ -40,6 +40,13 @@ export default function About() {
           done.
         </p>
         <h2>Analytics</h2>
+        <p>
+          The homepage shows a shared count of successfully processed images,
+          with the date counting started. It counts completed server responses,
+          not unique people or downloads. Earlier removals are not included.
+          This counter stores only the total and start date, with no photos or
+          personal information.
+        </p>
         {analyticsId ? (
           <p>
             We use Google Analytics to understand how people use BG Poof. It

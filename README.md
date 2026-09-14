@@ -116,7 +116,41 @@ These Node checks use mocked bindings and synthetic image data; they need neithe
 
 GitHub Actions runs the application checks, build, and browser SEO checks on Node 22, plus native service tests on Python 3.13, without deployment credentials.
 
-`npm run test:seo` checks the built pages, sitemap, robots directives, canonical redirects, metadata before and after hydration, social image, navigation, and mobile layout. Run `npm run build` first. It starts an isolated local Worker without production bindings or credentials, and does not run background removal. To check a deployed site instead, run `BASE_URL=https://your-site.example npm run test:seo`.
+`npm run test:seo` checks the built pages, sitemap, robots directives, canonical redirects, metadata before and after hydration, social image, navigation, mobile layout, and the counter's loading and unavailable states. Run `npm run build` first. It starts an isolated local Worker without production bindings or credentials, and does not run background removal. To check a deployed site instead, run `BASE_URL=https://your-site.example npm run test:seo`.
+
+## Processing count
+
+The homepage displays a persistent global image count when the optional `BGPOOF_STATS` D1 binding is configured. Counting starts when its migration is applied; there is no estimated historical backfill. Each successful, nonempty removal response adds one after its full stream completes. Failed, cancelled, and interrupted streams do not count. Reprocessing an image, including a real automated verification upload, counts as another processing operation; this is not a unique-user or download count.
+
+Only a total and start timestamp are stored. Increments use one atomic SQL update and Cloudflare `waitUntil`, without buffering the photo or waiting for the database before delivering it. Counter outages do not break removal; failed writes are logged as `processing_stats_write_failed` and can cause undercounting. The public read-only `/api/stats` response may be cached for one minute. If the counter is unavailable, the page omits its number instead of inventing one.
+
+To enable it on your own deployment:
+
+```sh
+npx wrangler d1 create bgpoof-stats --config wrangler.local.jsonc
+```
+
+Add the returned ID to your ignored local configuration:
+
+```json
+"d1_databases": [
+  {
+    "binding": "BGPOOF_STATS",
+    "database_name": "bgpoof-stats",
+    "database_id": "YOUR_D1_DATABASE_ID",
+    "migrations_dir": "migrations"
+  }
+]
+```
+
+Apply the migration before deploying:
+
+```sh
+npx wrangler d1 migrations apply BGPOOF_STATS --remote --config wrangler.local.jsonc
+npm run deploy
+```
+
+For a local development counter, apply the migration with `--local` instead of `--remote`. Development uses local D1 storage by default, so preview/test removals do not increment production. The generic configuration keeps D1 optional; counter tests use an in-memory SQLite database and require no Cloudflare credentials.
 
 ## Search and sharing
 

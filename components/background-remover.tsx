@@ -27,6 +27,7 @@ import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
 import { removePhotoBackground, type RemovalProgress } from '@/lib/removal';
 import { registerDownloadTool } from '@/lib/webmcp';
+import { ProcessingStats } from '@/components/processing-stats';
 
 type Photo = {
   original: string;
@@ -318,6 +319,7 @@ export default function BackgroundRemover({
                 <br />
                 Drop it in. Get a transparent PNG.
               </p>
+              <ProcessingStats />
             </div>
             <div className="upload-card">
               <div className="upload-icon">

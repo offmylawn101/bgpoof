@@ -213,6 +213,22 @@ main {
   color: #626b7b;
   margin: 0 0 18px;
 }
+.intro .processing-stats {
+  min-height: 42px;
+  margin: 20px 0 0;
+  color: #596070;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.processing-stats strong {
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+.stats-since {
+  display: block;
+  color: #626b7b;
+  font-size: 12px;
+}
 kbd {
   background: #f7f8fb;
   border: 1px solid #e6e8ef;
