@@ -5,6 +5,12 @@ await writeFile(
   `import app from './index.js';
 export default {
   async fetch(request, env, context) {
+    const url = new URL(request.url);
+    if (url.hostname === 'www.bgpoof.com' || (url.hostname === 'bgpoof.com' && url.protocol === 'http:')) {
+      url.hostname = 'bgpoof.com';
+      url.protocol = 'https:';
+      return Response.redirect(url.href, 308);
+    }
     const response = await app.fetch(request, env, context);
     const headers = new Headers(response.headers);
     headers.set('Cross-Origin-Opener-Policy', 'same-origin');

@@ -83,5 +83,5 @@ const files = [
   'README.md',
   'LICENSE',
 ];
-execFileSync('tar', ['-czf', 'public/source/cutout-source.tar.gz', ...files]);
+execFileSync('tar', ['-czf', 'public/source/bgpoof-source.tar.gz', ...files]);
 console.log('Prepared matching ONNX runtime assets and downloadable source.');

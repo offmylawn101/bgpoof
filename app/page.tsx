@@ -250,16 +250,16 @@ export default function Home() {
   return (
     <div className="site-shell" data-ready={ready}>
       <header className="site-header">
-        <a className="wordmark" href="/" aria-label="Cutout home">
+        <a className="wordmark" href="/" aria-label="BG Poof home">
           <span className="brand-icon">
             <span />
           </span>
-          cutout<span className="brand-dot">.</span>
+          bgpoof<span className="brand-dot">.</span>
         </a>
         <span className="header-note">
           <span className="status-dot" /> Free. No account needed.
         </span>
-        <a href="/source/cutout-source.tar.gz" className="source-link">
+        <a href="/source/bgpoof-source.tar.gz" className="source-link">
           Open source <ArrowUpRight size={15} />
         </a>
       </header>

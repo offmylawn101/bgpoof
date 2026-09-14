@@ -1,4 +1,4 @@
-# Cutout
+# BG Poof
 
 Account-free, browser-only photo background removal. Upload, drop anywhere, or paste a JPG/PNG/WebP. Processing automatically starts in a dedicated Worker; a two-second right-to-left cubic wipe reveals a transparent full-resolution PNG. Comparison is keyboard and touch accessible. No photo API, credentials, analytics, tracking, or image storage.
 
@@ -29,4 +29,4 @@ Application: MIT. ONNX Runtime: MIT. IMG.LY's standalone model card marks the co
 
 ## Cloudflare deployment
 
-Production is deployed directly to the `agenttransfer` account as Worker `removebg`, using `wrangler.production.jsonc`. Run `npm run deploy` with an authorized Wrangler login or `CLOUDFLARE_API_TOKEN` in the environment. No credential is stored in this repository. The production entry adds cross-origin isolation headers to HTML while `_headers` covers static assets, allowing two WASM threads on supported browsers. `npm start -- --port 3091` serves the exact production entry locally.
+The main address is https://bgpoof.com; www redirects to the apex. Production is deployed directly to the `agenttransfer` account as Worker `removebg`, using `wrangler.production.jsonc`. Run `npm run deploy` with an authorized Wrangler login or `CLOUDFLARE_API_TOKEN` in the environment. No credential is stored in this repository. The production entry adds cross-origin isolation headers to HTML while `_headers` covers static assets, allowing two WASM threads on supported browsers. `npm start -- --port 3091` serves the exact production entry locally.

@@ -1,17 +1,20 @@
-export const metadata = { title: 'About & licenses — Cutout' };
+export const metadata = {
+  title: 'About & licenses — BG Poof',
+  alternates: { canonical: '/about' },
+};
 export default function About() {
   return (
     <main className="about-page">
-      <a href="/">← Back to Cutout</a>
+      <a href="/">← Back to BG Poof</a>
       <h1>Your photos stay yours.</h1>
       <p>
-        Cutout removes photo backgrounds on your device. Your photo is never
+        BG Poof removes photo backgrounds on your device. Your photo is never
         sent to our server. There are no accounts, watermarks, or paid download
         tiers.
       </p>
       <h2>How it works</h2>
       <p>
-        The first time you use Cutout, your browser downloads about 100 MB of
+        The first time you use BG Poof, your browser downloads about 100 MB of
         background-removal software and model files. It saves the model locally
         when browser storage is available, so later visits can reuse it.
         Processing speed depends on your device. Clearing site data removes the
@@ -21,7 +24,7 @@ export default function About() {
         Photos are kept in memory while you use the page, then released when you
         replace them, close the page, or clear the result. The server receives
         ordinary requests for the website and model files, but never your photo.
-        Cutout does not use analytics or tracking cookies.
+        BG Poof does not use analytics or tracking cookies.
       </p>
       <p>
         JPG, PNG, and WebP photos are supported up to 25 MB and 25 megapixels,
@@ -32,9 +35,9 @@ export default function About() {
       </p>
       <h2>Open source & credits</h2>
       <p>
-        <a href="/source/cutout-source.tar.gz">Download Cutout’s source</a>. The
-        application code is available under the MIT license. Model files can be
-        retrieved using the included download script.
+        <a href="/source/bgpoof-source.tar.gz">Download BG Poof’s source</a>.
+        The application code is available under the MIT license. Model files can
+        be retrieved using the included download script.
       </p>
       <p>
         Background removal uses{' '}
@@ -66,7 +69,7 @@ export default function About() {
         cutout was processed with this site’s own engine.
       </p>
       <p>
-        Cutout is independent and is not affiliated with remove.bg or Canva.
+        BG Poof is independent and is not affiliated with remove.bg or Canva.
       </p>
     </main>
   );
