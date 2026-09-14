@@ -9,6 +9,12 @@ spatially supported translucent interiors. Thin uncertain seams inside a
 recovered object stay repaired; a coarse binary mask does not make the
 supported hair or translucent areas opaque.
 
+Recovery is skipped when all four border bands are nearly one color and the
+provider's mask already agrees with that color separation (at least 98% IoU
+at the 512-pixel working size). This prevents coarse GrabCut expansion from
+adding a flat backdrop to a clean graphic. Partial masks and nonuniform
+backgrounds retain recovery; the color check never replaces the output mask.
+
 At the original working resolution, a narrow automatic trimap then estimates
 edge opacity and removes background color contamination. Eroded confident
 foreground/background supply nearby local colors. The observed pixel is

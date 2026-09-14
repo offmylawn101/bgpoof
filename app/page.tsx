@@ -140,6 +140,7 @@ export default function Home() {
               );
             }
           },
+          file,
         );
         if (id !== operation.current) return;
         const result = URL.createObjectURL(blob);

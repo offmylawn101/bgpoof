@@ -7,8 +7,9 @@ export async function removePhotoBackground(
   signal: AbortSignal,
   progress: (next: RemovalProgress) => void,
   preview: (blob: Blob) => void,
+  source?: Blob,
 ): Promise<Blob> {
   const { processPhoto } = await import('./removal-engine');
   signal.throwIfAborted();
-  return processPhoto(bitmap, signal, progress, preview);
+  return processPhoto(bitmap, signal, progress, preview, source);
 }

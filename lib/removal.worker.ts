@@ -9,7 +9,9 @@ const report = (message: string) =>
 
 // Only a compact copy is uploaded. Keep original pixels and alpha for the PNG.
 // Transfer the already-decoded bitmap; resizing and encoding run off the UI thread.
-scope.onmessage = async ({ data }: MessageEvent<{ bitmap: ImageBitmap }>) => {
+scope.onmessage = async ({
+  data,
+}: MessageEvent<{ bitmap: ImageBitmap; source?: Blob }>) => {
   let original: ImageBitmap | undefined;
   let mask: ImageBitmap | undefined;
   let small: OffscreenCanvas | undefined;
@@ -33,10 +35,15 @@ scope.onmessage = async ({ data }: MessageEvent<{ bitmap: ImageBitmap }>) => {
     preview.fillRect(0, 0, small.width, small.height);
     preview.imageSmoothingQuality = 'high';
     preview.drawImage(original, 0, 0, small.width, small.height);
-    let upload = await small.convertToBlob({
-      type: 'image/jpeg',
-      quality: 0.94,
-    });
+    // Reuse a PNG that already fits the inference budget. JPEG artifacts can
+    // change segmentation of dark graphics, even when they look identical.
+    let upload =
+      data.source?.type === 'image/png' &&
+      data.source.size <= 2 * 1024 * 1024 &&
+      width <= 1536 &&
+      height <= 1536
+        ? data.source
+        : await small.convertToBlob({ type: 'image/jpeg', quality: 0.94 });
     // Retain more detail while keeping even noisy photos within the API budget.
     if (upload.size > 2 * 1024 * 1024)
       upload = await small.convertToBlob({ type: 'image/jpeg', quality: 0.8 });

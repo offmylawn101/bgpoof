@@ -7,12 +7,14 @@ import struct
 import threading
 import time
 import unittest
+from unittest.mock import patch
 
 import cv2 as cv
 import numpy as np
 
 from grabcut import (InvalidImage, MATTE_FORMAT, MAX_BODY_BYTES, MAX_SIDE, NativeProcessor,
-                     RefinementServer, edge_matte, image_header, native_worker, refine_images, unpack_images)
+                     RefinementServer, edge_matte, has_clean_flat_background, image_header,
+                     native_worker, refine_images, unpack_images)
 
 
 def encode(image, extension=".png"):
@@ -85,6 +87,37 @@ class NativeTests(unittest.TestCase):
             np.testing.assert_array_equal(result[:, :, 3], baseline)
             self.assertTrue(np.all(result[:, :, :3] == 128))
             self.assertEqual(status, "unchanged")
+
+    def test_complete_flat_background_mask_is_not_expanded(self):
+        # Dark artwork on black: its opaque interior must stay intact, and
+        # coarse recovery must not add the surrounding black to the cutout.
+        image = np.zeros((96, 96, 3), np.uint8)
+        alpha = np.zeros((96, 96), np.uint8)
+        cv.rectangle(image, (20, 16), (76, 80), (25, 18, 12), -1)
+        cv.rectangle(alpha, (20, 16), (76, 80), 255, -1)
+        cv.putText(image, ">", (32, 58), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        with patch("cv2.grabCut", side_effect=AssertionError("Clean mask must not be grown")):
+            png, status = refine_images(envelope(encode(image), encode(np.dstack((image, alpha)))))
+        result = cv.imdecode(np.frombuffer(png, np.uint8), cv.IMREAD_UNCHANGED)
+        np.testing.assert_array_equal(result[:, :, 3], alpha)
+        self.assertEqual(status, "unchanged")
+
+    def test_flat_background_gate_requires_a_complete_mask_and_all_four_sides(self):
+        image = np.full((96, 96, 3), (185, 40, 20), np.uint8)
+        image[20:76, 20:76] = (15, 60, 220)
+        complete = np.zeros((96, 96), np.uint8)
+        complete[20:76, 20:76] = 255
+        self.assertTrue(has_clean_flat_background(image, complete))
+        partial = complete.copy()
+        partial[20:40, 20:76] = 0
+        self.assertFalse(has_clean_flat_background(image, partial))
+        for side in (np.s_[:4, :], np.s_[-4:, :], np.s_[:, :4], np.s_[:, -4:]):
+            textured = image.copy()
+            textured[side] = (60, 130, 70)
+            self.assertFalse(has_clean_flat_background(textured, complete))
+        for shape in ((1, 64), (64, 1), (4, 4)):
+            self.assertFalse(has_clean_flat_background(np.zeros((*shape, 3), np.uint8),
+                                                       np.zeros(shape, np.uint8)))
 
     def test_matting_recovers_soft_edges_and_removes_color_spill(self):
         y, x = np.mgrid[:256, :320]

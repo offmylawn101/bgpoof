@@ -100,6 +100,33 @@ class InvalidImage(ValueError):
     pass
 
 
+def has_clean_flat_background(source, alpha):
+    """Avoid growing an already complete mask into a uniform backdrop.
+
+    This is only a recovery gate, never a replacement mask. All four border
+    bands must share a color, and the provider's silhouette must closely agree
+    with color separation. Partial masks and ordinary photographs still need
+    the existing recovery pass.
+    """
+    import numpy as np
+
+    height, width = alpha.shape
+    if min(height, width) < 8:
+        return False
+    band = max(2, round(min(height, width) * 0.015))
+    sides = (source[:band].reshape(-1, 3), source[-band:].reshape(-1, 3),
+             source[band:-band, :band].reshape(-1, 3),
+             source[band:-band, -band:].reshape(-1, 3))
+    color = np.median(np.concatenate(sides), axis=0)
+    if any(np.mean(np.max(np.abs(side.astype(np.int16) - color), axis=1) <= 4) < 0.99
+           for side in sides):
+        return False
+    separated = np.max(np.abs(source.astype(np.int16) - color), axis=2) > 8
+    foreground = alpha >= 128
+    union = np.count_nonzero(separated | foreground)
+    return union > 0 and np.count_nonzero(separated & foreground) / union >= 0.98
+
+
 def image_header(data: bytes) -> tuple[str, int, int]:
     """Read dimensions before entering a native image decoder."""
     if data.startswith(b"\x89PNG\r\n\x1a\n"):
@@ -224,7 +251,8 @@ def refine_images(body: bytes) -> tuple[bytes, str]:
     alpha = baseline
     # GrabCut needs samples for both mixtures. Do not invent foreground when
     # Cloudflare found none or force an image-touching subject into background.
-    if np.count_nonzero(background) >= 5 and np.count_nonzero(labels == cv.GC_FGD) >= 5:
+    if (np.count_nonzero(background) >= 5 and np.count_nonzero(labels == cv.GC_FGD) >= 5
+            and not has_clean_flat_background(small_image, small_alpha)):
         cv.setRNGSeed(1)
         cv.grabCut(small_image, labels, None, np.zeros((1, 65), np.float64),
                    np.zeros((1, 65), np.float64), 1, cv.GC_INIT_WITH_MASK)

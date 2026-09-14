@@ -11,6 +11,7 @@ export function processPhoto(
   signal: AbortSignal,
   progress: (next: RemovalProgress) => void,
   preview: (blob: Blob) => void,
+  source?: Blob,
 ): Promise<Blob> {
   if (typeof Worker === 'undefined' || typeof OffscreenCanvas === 'undefined') {
     return Promise.reject(
@@ -71,7 +72,7 @@ export function processPhoto(
     if (signal.aborted) cancel();
     else {
       try {
-        current.postMessage({ bitmap }, [bitmap]);
+        current.postMessage({ bitmap, source }, [bitmap]);
       } catch (error) {
         cleanup();
         destroy();
