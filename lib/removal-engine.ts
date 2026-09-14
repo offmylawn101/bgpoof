@@ -1,7 +1,7 @@
 import type { RemovalProgress } from './removal';
 
 type WorkerReply =
-  | { type: 'progress'; message: string; value: number | null }
+  | ({ type: 'progress' } & RemovalProgress)
   | { type: 'result'; blob: Blob }
   | { type: 'preview'; blob: Blob }
   | { type: 'error'; message: string };
@@ -56,8 +56,7 @@ export function processPhoto(
       );
     };
     current.onmessage = ({ data }: MessageEvent<WorkerReply>) => {
-      if (data.type === 'progress')
-        progress({ message: data.message, value: data.value });
+      if (data.type === 'progress') progress({ message: data.message });
       else if (data.type === 'preview') preview(data.blob);
       else if (data.type === 'result') {
         cleanup();

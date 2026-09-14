@@ -50,7 +50,6 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<RemovalProgress>({
     message: 'Preparing your photo…',
-    value: null,
   });
   const [error, setError] = useState('');
   const [dragging, setDragging] = useState(false);
@@ -107,7 +106,7 @@ export default function Home() {
       setBusy(true);
       setRevealing(false);
       setCompare(100);
-      setProgress({ message: 'Preparing your photo…', value: null });
+      setProgress({ message: 'Preparing your photo…' });
       let original = '';
       let bitmap: ImageBitmap | undefined;
       try {
@@ -409,17 +408,25 @@ export default function Home() {
                     <span className="processing-symbol">
                       <LoaderCircle className="spin" size={28} />
                     </span>
-                    <h2>Making the cut.</h2>
-                    <output className="processing-status">
+                    <h2>
+                      {photo.preview
+                        ? 'Finishing your PNG.'
+                        : 'Making the cut.'}
+                    </h2>
+                    <output
+                      id="processing-status"
+                      className="processing-status"
+                    >
                       {progress.message}
                     </output>
                     <Progress
-                      value={progress.value}
+                      value={null}
                       aria-label="Background removal progress"
+                      aria-describedby="processing-status"
                       className="removal-progress"
                     />
                     <p className="small-copy">
-                      Just a moment. Your full-resolution PNG is on its way.
+                      Your download will appear when the PNG is ready.
                     </p>
                     <Button
                       variant="outline"

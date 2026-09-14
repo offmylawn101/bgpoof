@@ -4,8 +4,8 @@ import { refineMask } from './refine-mask.js';
 import { applyEdgeColors } from './edge-colors.js';
 
 const scope = self as unknown as DedicatedWorkerGlobalScope;
-const report = (message: string, value: number | null = null) =>
-  scope.postMessage({ type: 'progress', message, value });
+const report = (message: string) =>
+  scope.postMessage({ type: 'progress', message });
 
 // Only a compact copy is uploaded. Keep original pixels and alpha for the PNG.
 // Transfer the already-decoded bitmap; resizing and encoding run off the UI thread.
@@ -15,7 +15,7 @@ scope.onmessage = async ({ data }: MessageEvent<{ bitmap: ImageBitmap }>) => {
   let small: OffscreenCanvas | undefined;
   let canvas: OffscreenCanvas | undefined;
   try {
-    report('Preparing your photo…', 10);
+    report('Preparing your photo…');
     original = data.bitmap;
     const { width, height } = original;
     if (width * height > 25_000_000 || width > 8192 || height > 8192)
@@ -42,7 +42,7 @@ scope.onmessage = async ({ data }: MessageEvent<{ bitmap: ImageBitmap }>) => {
       upload = await small.convertToBlob({ type: 'image/jpeg', quality: 0.8 });
     if (upload.size > 2 * 1024 * 1024)
       throw new Error('This photo is too detailed. Try a smaller photo.');
-    report('Removing the background…', 35);
+    report('Removing the background…');
     const response = await fetch('/api/remove-background', {
       method: 'POST',
       headers: { 'Content-Type': upload.type },
@@ -66,12 +66,13 @@ scope.onmessage = async ({ data }: MessageEvent<{ bitmap: ImageBitmap }>) => {
       );
     const hasMatting =
       response.headers.get('X-BGPoof-Matte-Format') === 'delta-rgb-v1';
+    report('Receiving your cutout…');
     mask = await createImageBitmap(await response.blob());
     if (mask.width !== small.width || mask.height !== small.height)
       throw new Error(
         'The background remover returned an invalid size. Please try again.',
       );
-    report('Refining the edges…', 85);
+    report('Preparing your preview…');
     const guide = preview.getImageData(0, 0, small.width, small.height);
     preview.clearRect(0, 0, small.width, small.height);
     preview.drawImage(mask, 0, 0);
@@ -80,7 +81,6 @@ scope.onmessage = async ({ data }: MessageEvent<{ bitmap: ImageBitmap }>) => {
     preview.putImageData(refined, 0, 0);
     mask.close();
     mask = await createImageBitmap(small);
-    report('Saving your full-resolution PNG…', 90);
     // Reveal a display-sized cutout while the original-resolution PNG encodes.
     // Use original pixels/alpha rather than the inference JPEG's white backing.
     preview.clearRect(0, 0, small.width, small.height);
@@ -92,6 +92,7 @@ scope.onmessage = async ({ data }: MessageEvent<{ bitmap: ImageBitmap }>) => {
       type: 'preview',
       blob: await small.convertToBlob({ type: 'image/png' }),
     });
+    report('Preparing your full-resolution image…');
     canvas = new OffscreenCanvas(width, height);
     const context = canvas.getContext('2d');
     if (!context)
@@ -103,6 +104,7 @@ scope.onmessage = async ({ data }: MessageEvent<{ bitmap: ImageBitmap }>) => {
     context.globalCompositeOperation = 'destination-in';
     context.imageSmoothingQuality = 'high';
     context.drawImage(mask, 0, 0, width, height);
+    report('Creating your PNG…');
     const blob = await canvas.convertToBlob({ type: 'image/png' });
     scope.postMessage({ type: 'result', blob });
   } catch (error) {

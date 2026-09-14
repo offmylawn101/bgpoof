@@ -1,4 +1,5 @@
-export type RemovalProgress = { message: string; value: number | null };
+// Inference and PNG encoding do not expose measurable completion percentages.
+export type RemovalProgress = { message: string };
 
 // The processing engine is loaded only after a photo is selected.
 export async function removePhotoBackground(
