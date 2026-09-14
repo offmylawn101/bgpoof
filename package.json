@@ -17,8 +17,9 @@
     "check": "tsc --noEmit && oxlint",
     "test": "playwright test",
     "postbuild": "node scripts/prepare-cloudflare.mjs",
-    "deploy": "npm run check && npm run test:api && npm run build && wrangler deploy --config wrangler.production.jsonc",
-    "test:api": "node --test tests/api.test.mjs"
+    "deploy": "npm run check && npm run test:api && npm run test:mask && npm run build && wrangler deploy --config wrangler.production.jsonc",
+    "test:api": "node --test tests/api.test.mjs",
+    "test:mask": "node --test tests/refine-mask.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",

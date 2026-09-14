@@ -40,6 +40,7 @@ next-env.d.ts
 # reproducible generated assets and local test artifacts
 /public/runtime/
 /public/removal.worker.mjs
+/public/refine-mask.js
 /public/source/
 /test-results/
 /playwright-report/

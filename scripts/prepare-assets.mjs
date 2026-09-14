@@ -1,16 +1,19 @@
 import ts from 'typescript';
 import { readFile, writeFile, readdir, rm } from 'node:fs/promises';
-// Compile this self-contained Worker separately so dev transforms cannot inject DOM-only code.
-const worker = await readFile('lib/removal.worker.ts', 'utf8');
-await writeFile(
-  'public/removal.worker.mjs',
-  ts.transpileModule(worker, {
-    compilerOptions: {
-      target: ts.ScriptTarget.ES2022,
-      module: ts.ModuleKind.ESNext,
-    },
-  }).outputText,
-);
+// Compile the Worker modules separately so dev transforms cannot inject DOM-only code.
+for (const [source, output] of [
+  ['lib/removal.worker.ts', 'public/removal.worker.mjs'],
+  ['lib/refine-mask.ts', 'public/refine-mask.js'],
+])
+  await writeFile(
+    output,
+    ts.transpileModule(await readFile(source, 'utf8'), {
+      compilerOptions: {
+        target: ts.ScriptTarget.ES2022,
+        module: ts.ModuleKind.ESNext,
+      },
+    }).outputText,
+  );
 // Remove the archive left by older builds; application source is not published.
 await rm('public/source/bgpoof-source.tar.gz', { force: true });
 const notices = [];

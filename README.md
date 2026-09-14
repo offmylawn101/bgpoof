@@ -4,7 +4,9 @@ Photo background removal without accounts, watermarks, or paid download tiers. U
 
 ## Processing and privacy
 
-The original photo stays in the browser. A browser Worker makes a JPEG copy at quality 0.94, with a maximum long side of 1,024 pixels, and posts it to `/api/remove-background`. That route uses [Cloudflare Images foreground segmentation](https://developers.cloudflare.com/images/optimization/features/#segment) through the `IMAGES` binding. The browser applies the returned transparency mask to the original pixels and encodes a PNG at the source dimensions, preserving existing transparency. A display-sized preview begins the reveal while the full-resolution download finishes encoding, then the displayed image switches to the full-resolution PNG for native copying. BG Poof does not store uploaded copies or results.
+The original photo stays in the browser. A browser Worker makes a JPEG copy at quality 0.94, with a maximum long side of 1,536 pixels, and posts it to `/api/remove-background`. Unusually detailed copies use stronger compression to stay within the 2 MiB upload budget. That route uses [Cloudflare Images foreground segmentation](https://developers.cloudflare.com/images/optimization/features/#segment) through the `IMAGES` binding. The browser refines uncertain mask boundaries using the original photo's colors, then applies the mask to the original pixels and encodes a PNG at the source dimensions, preserving existing transparency. A display-sized preview begins the reveal while the full-resolution download finishes encoding, then the displayed image switches to the full-resolution PNG for native copying. BG Poof does not store uploaded copies or results.
+
+Boundary refinement runs in the browser Worker at the working image size, with no extra AI request. It preserves exact opaque and transparent mask pixels, avoids changing interior translucency, and limits each edge adjustment. Heavily translucent or noisy masks skip refinement to bound processing cost. This can refine an existing boundary; it cannot restore whole objects that the model omitted.
 
 Cloudflare hosts the site, processes the compact photo copy, and collects [cookie-free page-performance metrics](https://developers.cloudflare.com/web-analytics/about/). Those metrics do not include photo contents. Working images remain in browser memory until the user replaces them, clears the result, or closes the page.
 
@@ -46,11 +48,13 @@ No secret image API key is required: the Worker accesses Images through its bind
 npm run deploy
 ```
 
-This runs the type, lint, and API checks, builds the application, and deploys it with the production Wrangler configuration.
+This runs the type, lint, API, and mask-refinement checks, builds the application, and deploys it with the production Wrangler configuration.
 
 ## Browser and quality checks
 
 `npm run test:api` runs the API handler tests in Node with mocked Images and rate-limit bindings. These checks do not require a running server or Cloudflare credentials.
+
+`npm run test:mask` checks image-guided edge refinement against synthetic reference edges, thin strands, and translucent masks without network access.
 
 `npm test` runs Playwright browser integration tests against `BASE_URL`, which defaults to `http://localhost:3090`. Start the target server first. The Playwright configuration uses Chrome; install a compatible browser before running tests. Tests that process photos require a working Images binding and are subject to the removal rate limit.
 

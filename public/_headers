@@ -3,3 +3,5 @@
   Referrer-Policy: strict-origin-when-cross-origin
 /removal.worker.mjs
   Cache-Control: no-cache
+/refine-mask.js
+  Cache-Control: no-cache

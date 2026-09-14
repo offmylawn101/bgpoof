@@ -1,5 +1,7 @@
 /// <reference lib="webworker" />
 
+import { refineMask } from './refine-mask.js';
+
 const scope = self as unknown as DedicatedWorkerGlobalScope;
 const report = (message: string, value: number | null = null) =>
   scope.postMessage({ type: 'progress', message, value });
@@ -19,21 +21,26 @@ scope.onmessage = async ({ data }: MessageEvent<{ bitmap: ImageBitmap }>) => {
       throw new Error(
         'Choose a photo up to 25 megapixels and 8,192 pixels per side.',
       );
-    const scale = Math.min(1, 1024 / Math.max(width, height));
+    const scale = Math.min(1, 1536 / Math.max(width, height));
     small = new OffscreenCanvas(
       Math.max(1, Math.round(width * scale)),
       Math.max(1, Math.round(height * scale)),
     );
-    const preview = small.getContext('2d');
+    const preview = small.getContext('2d', { willReadFrequently: true });
     if (!preview) throw new Error('Your browser couldn’t prepare this photo.');
     preview.fillStyle = '#fff';
     preview.fillRect(0, 0, small.width, small.height);
     preview.imageSmoothingQuality = 'high';
     preview.drawImage(original, 0, 0, small.width, small.height);
-    const upload = await small.convertToBlob({
+    let upload = await small.convertToBlob({
       type: 'image/jpeg',
       quality: 0.94,
     });
+    // Retain more detail while keeping even noisy photos within the API budget.
+    if (upload.size > 2 * 1024 * 1024)
+      upload = await small.convertToBlob({ type: 'image/jpeg', quality: 0.8 });
+    if (upload.size > 2 * 1024 * 1024)
+      throw new Error('This photo is too detailed. Try a smaller photo.');
     report('Removing the background…', 35);
     const response = await fetch('/api/remove-background', {
       method: 'POST',
@@ -61,6 +68,15 @@ scope.onmessage = async ({ data }: MessageEvent<{ bitmap: ImageBitmap }>) => {
       throw new Error(
         'The background remover returned an invalid size. Please try again.',
       );
+    report('Refining the edges…', 85);
+    const guide = preview.getImageData(0, 0, small.width, small.height);
+    preview.clearRect(0, 0, small.width, small.height);
+    preview.drawImage(mask, 0, 0);
+    const refined = preview.getImageData(0, 0, small.width, small.height);
+    refineMask(refined, guide);
+    preview.putImageData(refined, 0, 0);
+    mask.close();
+    mask = await createImageBitmap(small);
     report('Saving your full-resolution PNG…', 90);
     // Reveal a display-sized cutout while the original-resolution PNG encodes.
     // Use original pixels/alpha rather than the inference JPEG's white backing.
