@@ -1,31 +1,50 @@
 # BG Poof
 
-Photo background removal without accounts, watermarks, or paid download tiers. Upload, drop, or paste a JPG, PNG, or WebP to start processing. An 800 ms reveal shows the cutout, and reduced-motion users see it immediately. The result frame follows the uploaded photo’s aspect ratio. Right-click the completed image to copy its full-resolution PNG, or use Show original to compare. The homepage example retains its keyboard and touch slider.
+Remove photo backgrounds by uploading, dropping, or pasting a JPG, PNG, or WebP. The hosted app at [bgpoof.com](https://bgpoof.com) has no accounts, watermarks, or paid download tiers. The result frame follows the photo's dimensions; right-click the completed image to copy it, or download the full-resolution transparent PNG. An 800 ms reveal shows the cutout, with immediate display for reduced-motion users.
+
+This repository contains the MIT-licensed application and optional native refinement service. Background segmentation uses Cloudflare Images: its service and model are not bundled. Running your own copy requires your own Cloudflare access and usage allowance. BG Poof is independent of remove.bg and Canva.
 
 ## Processing and privacy
 
-The full-resolution original photo stays in the browser. A browser Worker makes a JPEG copy at quality 0.94, with a maximum long side of 1,536 pixels, and posts it to `/api/remove-background`. Unusually detailed copies use stronger compression to stay within the 2 MiB upload budget. That route uses [Cloudflare Images foreground segmentation](https://developers.cloudflare.com/images/optimization/features/#segment) through the `IMAGES` binding. The route then automatically sends that compact source and mask through a private connection to this server for a bounded GrabCut recovery pass and edge matting. No extra click or browser upload is needed. The server estimates edge transparency and remaining background color. The browser applies bounded color corrections to uncertain edges in the original photo, then applies the mask and encodes a PNG at the source dimensions, preserving existing transparency and full-resolution texture. A display-sized preview begins the reveal while the full-resolution download finishes encoding, then the displayed image switches to the full-resolution PNG for native copying. BG Poof does not store uploaded copies or results.
+The browser retains the original image for final compositing. It uploads one image to `/api/remove-background`, limited to 1,536 pixels per side and 2 MiB. **A PNG already within those limits is uploaded unchanged**, including any embedded metadata, to avoid compression damage to graphics. Other inputs are converted to a resized JPEG at quality 0.94, or 0.8 when needed to fit the upload limit. An uploaded PNG can therefore be the full-resolution original; larger originals remain in the browser while their smaller copies are processed.
 
-GrabCut uses Cloudflare’s confident foreground and a four-pixel band of low-alpha background seeds at the edge of its 512-pixel working image. It can recover details such as foil, but may also restore unwanted background. Soft outer edges and spatially supported translucent areas are protected from binary recovery before matting. The following matting pass estimates local foreground/background colors near uncertain boundaries and solves their color mixture for alpha. It declines low-contrast or poorly supported estimates and leaves interior translucency alone.
+The Worker uses the [Cloudflare Images binding](https://developers.cloudflare.com/images/optimization/binding/) for foreground segmentation. If configured, a private server automatically receives the same upload and mask for GrabCut recovery, edge matting, and bounded color corrections. Otherwise, or if that service fails or is busy, processing continues with the Cloudflare mask and a browser edge filter. There is no second browser upload.
 
-The private PNG carries the refined alpha and versioned RGB corrections. The browser applies only recognized corrections, bounded to 64 channel levels, in sparse tiles before masking. It keeps opaque cores and already-transparent source pixels intact. Reading too much of a very large or complex image skips color correction to bound browser cost. If the private service is busy, unavailable, or exceeds its deadline, the route returns the Cloudflare mask and the browser uses its existing bounded edge filter. No extra Cloudflare transformation or AI request is made.
+The browser applies the result to original pixels and existing transparency, then encodes a PNG at the original dimensions. A smaller preview appears first; the progress indicator continues through the actual processing stages until the downloadable PNG is ready. It does not estimate a percentage for operations that provide none. The completed image replaces the preview for native copying.
 
-Cloudflare hosts the site, segments the compact photo copy, and collects [cookie-free page-performance metrics](https://developers.cloudflare.com/web-analytics/about/). Our private server processes that copy transiently in memory. Google Analytics measures site usage and may use cookies. Neither analytics service receives photo contents. Working images remain in browser memory until the user replaces them, clears the result, or closes the page.
+Application code does not persist uploads or results. The optional native service processes images in memory and does not log their contents. Cloudflare still processes the uploaded image under its own service terms. Browser working images are released when replaced, cleared, or the page closes. Google Analytics is disabled by default in self-hosted copies; deployments can enable their own analytics. Photo contents are not sent to analytics.
 
-Inputs are limited to 25 MB, 25 megapixels, and 8,192 pixels per side. The five-second result target is not guaranteed: network speed, image size, device encoding time, Cloudflare service load, and server recovery time affect latency. Keeping the original dimensions preserves source resolution; fine hair, glass, shadows, and ambiguous subjects can still need editing. BG Poof is independent of remove.bg and Canva and does not promise identical results.
+Inputs are limited to 25 MB, 25 megapixels, and 8,192 pixels per side. Five-second completion is a target, not a guarantee: network speed, image size, browser encoding, and provider load affect latency. Refinement can recover missing details but can also restore unwanted background. Hair, glass, shadows, and ambiguous subjects can still need editing. See [server/README.md](server/README.md) for the native algorithm and safeguards.
 
-## Run and build
+## Run locally
 
-Use Node 22.13 or newer and an authorized Wrangler login for the configured Cloudflare account. Both local development and production-build previews use real Cloudflare Images through a [remote binding](https://developers.cloudflare.com/workers/local-development/). Photo processing requires network access and counts toward that account's Images usage.
+Use Node **22.13 or newer**. Install dependencies from the lockfile:
 
 ```sh
-npm install
+git clone https://github.com/offmylawn101/bgpoof.git
+cd bgpoof
+npm ci
+cp wrangler.jsonc wrangler.local.jsonc
+cp .env.example .env.local
 npx wrangler login
-npm run assets
-npm run dev -- --host 0.0.0.0 --port 3090
+npm run dev -- --host 127.0.0.1 --port 3090
 ```
 
-`npm run assets` prepares browser assets and dependency notices. The dev and build commands also run it automatically. Application source archives are not published. For a reproducible installation from the lockfile, use `npm ci`.
+Edit `wrangler.local.jsonc` for your Worker name and Cloudflare account. The ignored local file replaces the generic `wrangler.jsonc` configuration when present. The default configuration includes `IMAGES` and `REMOVAL_LIMITER`; it does not need a private server.
+
+Enable Images access in your Cloudflare account. Development and production previews use a real Images remote binding, so removal requires network access and counts toward that account's usage. Review [Cloudflare Images pricing](https://developers.cloudflare.com/images/pricing/) and your Workers plan before offering a public instance. The application license does not include hosted processing credits.
+
+Optional public build settings in `.env.local`:
+
+| Setting                     | Purpose                                                                                                                                                |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `VITE_BGPOOF_SITE_URL`      | Your canonical site origin, for metadata and `www`/HTTP redirects. Leave empty for no forced canonical redirect.                                       |
+| `VITE_BGPOOF_GA_ID`         | Your Google Analytics measurement ID. Empty disables Google Analytics.                                                                                 |
+| `VITE_BGPOOF_WEB_ANALYTICS` | Set to `true` only when Cloudflare Web Analytics is enabled for your deployment. This controls the privacy disclosure; it does not enable the service. |
+
+These `VITE_` values are public and embedded at build time. Keep credentials in Wrangler authentication or Worker secrets, not in these settings or committed files. Changes require a rebuild.
+
+## Build and deploy
 
 ```sh
 npm run check
@@ -33,55 +52,67 @@ npm run build
 npm start -- --port 3091
 ```
 
-The build creates the production Worker and static assets in `dist/`. `npm start` serves that production entry using Wrangler and `wrangler.production.jsonc`. The Vite configuration and production Wrangler configuration both set `images: { binding: "IMAGES", remote: true }`. The API route accesses the binding directly through `cloudflare:workers` during local development and after deployment.
+Builds prepare browser assets and dependency notices automatically, write the application to `dist/`, and generate ignored `wrangler.production.jsonc` from the selected source configuration. `npm start` previews that built Worker. Edit `wrangler.jsonc` or your local override, not the generated production file.
 
-## Cloudflare deployment
+Installing dependencies and building do not require Cloudflare credentials. Real image removal and deployment do.
 
-Production runs at https://bgpoof.com, with `www` redirected to the apex, as Worker `removebg` in the `agenttransfer` account. Deployment settings live in `wrangler.production.jsonc`. To run or deploy your own copy, update the account and Worker name in both `vite.config.ts` and `wrangler.production.jsonc`, and update the production routes.
-
-The Worker needs these bindings:
-
-- `IMAGES`: the [Cloudflare Images binding](https://developers.cloudflare.com/images/optimization/binding/), configured as `images: { binding: "IMAGES", remote: true }`. Enable the required Images access in the deploying Cloudflare account.
-- `REMOVAL_LIMITER`: a [Workers rate-limit binding](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/) configured for 10 requests per 60 seconds, keyed by client IP. Cloudflare enforces these counters per location with eventual consistency; this is an abuse limit, not an exact global quota. People sharing an IP share its allowance.
-- `GRABCUT`: a [Workers VPC service binding](https://developers.cloudflare.com/workers-vpc/configuration/vpc-services/) connected through the `bgpoof-inference` tunnel to `127.0.0.1:5137`.
-- `GRABCUT_SECRET`: a Worker secret matching the private service token.
-
-No secret image API key is required: the Worker accesses Images through its binding. Deployment still requires an authorized Wrangler login or `CLOUDFLARE_API_TOKEN`; credentials do not belong in the repository.
+To deploy, set your Worker name and, if needed, `account_id` and custom-domain `routes` in `wrangler.local.jsonc`. Use an authorized Wrangler login or `CLOUDFLARE_API_TOKEN`, then run:
 
 ```sh
 npm run deploy
 ```
 
-This runs the type, lint, API, mask-refinement, and native service checks, builds the application, and deploys it with the production Wrangler configuration.
+This runs type, lint, API, and mask checks, builds, and deploys with the generated configuration. Native service tests are separate because that service is optional.
 
-### Private recovery service
+The required bindings are:
 
-Install the isolated native environment before running service checks or deployment:
+- `IMAGES`: `images: { "binding": "IMAGES", "remote": true }`, using your Cloudflare Images access.
+- `REMOVAL_LIMITER`: 10 removal requests per 60 seconds, keyed by client IP. People sharing an IP share the allowance. Cloudflare's [rate-limit counters](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/) operate per location with eventual consistency; this is not an exact global quota.
+
+No separate image API key is needed; Images is accessed through the Worker binding.
+
+### Optional native refinement
+
+Cloudflare-only removal works without Python, PM2, a tunnel, or `GRABCUT_SECRET`. For automatic native recovery, provision a Linux server with Python, PM2, and `cloudflared`, then install:
 
 ```sh
 python3 -m venv .venv-grabcut
 .venv-grabcut/bin/pip install -r server/requirements.txt
+npm run test:grabcut
 ```
 
-Provision `.secrets/grabcut-key` with a random token of at least 32 characters and `.secrets/tunnel-token` with the private tunnel credential; protect both files with mode 600. Set the same recovery token as the Worker secret:
+Create a private Cloudflare Tunnel and [Workers VPC service](https://developers.cloudflare.com/workers-vpc/configuration/vpc-services/) targeting the server's `127.0.0.1:5137`. Add its binding to `wrangler.local.jsonc`:
+
+```json
+"vpc_services": [
+  { "binding": "GRABCUT", "service_id": "YOUR_VPC_SERVICE_ID", "remote": true }
+]
+```
+
+Provision `.secrets/grabcut-key` with a random token of at least 32 characters, and `.secrets/tunnel-token` with your tunnel credential. Protect both files with mode 600. After building to refresh the generated configuration, set the same recovery token as a Worker secret and start the services:
 
 ```sh
+npm run build
 npx wrangler secret put GRABCUT_SECRET --config wrangler.production.jsonc < .secrets/grabcut-key
 pm2 start ecosystem.config.cjs
 pm2 save
+npm run deploy
 ```
 
-The PM2 configuration runs only the recovery service and its QUIC tunnel connector. Local previews also need `GRABCUT_SECRET` in ignored `.dev.vars`; the configured remote VPC binding uses the same service. See [server/README.md](server/README.md) for the wire protocol and resource limits. Service changes require restarting `bgpoof-grabcut`; edge or UI changes require the Worker deployment.
+The PM2 file starts only the recovery service and its QUIC tunnel connector. Adjust its `/usr/local/bin/cloudflared` path if your installation differs. Local development and previews also need `GRABCUT_SECRET` in ignored `.dev.vars`; their remote VPC binding uses your private service. Service changes require restarting `bgpoof-grabcut`; application changes require a Worker deployment. See [server/README.md](server/README.md) for direct startup, authentication, protocol, and resource limits.
 
-## Browser and quality checks
+## Tests and quality measurements
 
-`npm run test:api` runs the API handler and private recovery integration tests in Node with mocked bindings, including timeout, cancellation, invalid-output, and overload fallbacks. These checks do not require a running server or Cloudflare credentials.
+```sh
+npm run test:api
+npm run test:mask
+```
 
-`npm run test:grabcut` checks native recovery and matting, including known soft-edge colors, protected foreground, unsupported mixtures, and process limits.
+These Node checks use mocked bindings and synthetic image data; they need neither Cloudflare credentials nor a running server. `npm run test:grabcut` additionally checks recovery, matting, and process limits in the optional Python environment.
 
-`npm run test:mask` checks the fallback image-guided edge refinement against synthetic reference edges, thin strands, and translucent masks without network access.
+GitHub Actions runs the application checks and build on Node 22, plus native service tests on Python 3.13, without deployment credentials.
 
-`npm test` runs Playwright browser integration tests against `BASE_URL`, which defaults to `http://localhost:3090`. Start the target server first. The Playwright configuration uses Chrome; install a compatible browser before running tests. Tests that process photos require a working Images binding and are subject to the removal rate limit.
+`npm test` runs Playwright browser tests against `BASE_URL`, defaulting to `http://localhost:3090`. Start the app first and install the configured browser with `npx playwright install chrome`. Tests that actually remove photos need a working Images binding and count toward its rate limit. Set `BGPOOF_TEST_GA_ID` to the target site's measurement ID when testing an analytics-enabled deployment; leave it unset for the default analytics-free build. The bundled portrait fixture and its rights are documented in [tests/ASSETS.md](tests/ASSETS.md).
 
 The optional quality check accepts local paths to a source photo and a reference transparent PNG of the same uncropped image:
 
@@ -92,10 +123,19 @@ BASE_URL=http://localhost:3091 \
 npm test -- tests/quality.spec.ts
 ```
 
-Set `BGPOOF_REQUIRE_GRABCUT=1` to require the automatic server stage to succeed and `BGPOOF_REQUIRE_MATTING=1` to require the refined matte/color protocol. Browser tests also verify neutral colors after PNG decoding, color-fringe correction, original transparency, and full-resolution texture. The source photo goes through the normal Cloudflare and GrabCut processing flow; the reference stays local. The test checks output dimensions, transparency, and upload behavior, measures cutout and reveal timing, foreground overlap, and alpha error, and saves the downloaded PNG plus `quality-metrics.json` as test artifacts. By default, quality scores are measurements without pass/fail thresholds. Set `BGPOOF_QUALITY_STRICT=1` to require foreground IoU of at least 0.95 and normalized alpha MAE of at most 0.04. `BGPOOF_QUALITY_MIN_IOU` and `BGPOOF_QUALITY_MAX_MAE` optionally set either threshold independently, with values from 0 to 1. Without both image paths, the quality test is skipped. Keep private reference images and generated artifacts out of version control.
+The source follows the normal processing flow; the reference stays local. The test validates dimensions, transparency, and upload behavior, measures cutout/reveal timing, foreground overlap, and alpha error, and saves the PNG and `quality-metrics.json` as artifacts. Without both image paths, it skips.
+
+- `BGPOOF_REQUIRE_GRABCUT=1` requires the native service to succeed.
+- `BGPOOF_REQUIRE_MATTING=1` requires its refined matte/color protocol.
+- `BGPOOF_QUALITY_STRICT=1` requires foreground IoU of at least 0.95 and normalized alpha MAE of at most 0.04.
+- `BGPOOF_QUALITY_MIN_IOU` and `BGPOOF_QUALITY_MAX_MAE` set individual thresholds between 0 and 1. Otherwise scores are measurements without pass/fail thresholds.
+
+Keep private reference images and generated artifacts outside version control. See [CONTRIBUTING.md](CONTRIBUTING.md) for submitting fixes.
 
 ## Licenses and credits
 
-Application code: MIT. React, Lucide, Base UI, and other bundled dependencies retain their own licenses; notices are generated in `public/licenses/dependencies.txt`. Background segmentation is provided by Cloudflare Images through its Workers binding. Server foreground recovery uses OpenCV GrabCut; OpenCV and NumPy retain their respective licenses in the installed Python packages.
+Application and native service source: [MIT](LICENSE). Dependencies retain their own licenses; browser notices are generated in `public/licenses/dependencies.txt`. OpenCV and NumPy notices accompany the installed Python packages. Cloudflare's segmentation service remains a separate hosted dependency.
 
-The example photo is by [Helena Lopes on Unsplash](https://unsplash.com/fr/photos/golden-retriever-assis-sur-le-sol-au-coucher-du-soleil-w-dZelX6svs), photo `w-dZelX6svs`, under the [Unsplash License](https://unsplash.com/license). Its cutout uses Cloudflare Images and the app's browser compositing. See `/about` and `public/licenses/` for credits.
+The example dog photo is by [Helena Lopes on Unsplash](https://unsplash.com/fr/photos/golden-retriever-assis-sur-le-sol-au-coucher-du-soleil-w-dZelX6svs), photo `w-dZelX6svs`, under the [Unsplash License](https://unsplash.com/license). Its cutout uses Cloudflare Images and browser compositing. The public-domain test portrait has separate attribution in [tests/ASSETS.md](tests/ASSETS.md).
+
+The public Git history excludes retired local model files and a previous test fixture whose redistribution rights were undocumented.

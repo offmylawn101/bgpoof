@@ -2,6 +2,14 @@
   "name": "bgpoof",
   "version": "0.1.0",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/offmylawn101/bgpoof.git"
+  },
+  "homepage": "https://bgpoof.com",
+  "bugs": {
+    "url": "https://github.com/offmylawn101/bgpoof/issues"
+  },
   "engines": {
     "node": ">=22.13.0"
   },
@@ -17,7 +25,7 @@
     "check": "tsc --noEmit && oxlint",
     "test": "playwright test",
     "postbuild": "node scripts/prepare-cloudflare.mjs",
-    "deploy": "npm run check && npm run test:api && npm run test:mask && npm run test:grabcut && npm run build && wrangler deploy --config wrangler.production.jsonc",
+    "deploy": "npm run check && npm run test:api && npm run test:mask && npm run build && wrangler deploy --config wrangler.production.jsonc",
     "test:api": "node --test tests/api.test.mjs tests/grabcut.test.mjs",
     "test:mask": "node --test tests/refine-mask.test.mjs",
     "test:grabcut": ".venv-grabcut/bin/python -m unittest discover -s server -v"

@@ -15,7 +15,7 @@ for (const [source, output] of [
       },
     }).outputText,
   );
-// Remove the archive left by older builds; application source is not published.
+// Remove the archive left by older builds; the site does not serve source archives.
 await rm('public/source/bgpoof-source.tar.gz', { force: true });
 const notices = [];
 for (const name of [

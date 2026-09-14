@@ -1,4 +1,9 @@
 import { defineConfig } from '@playwright/test';
+import { loadEnv } from 'vite';
+
+process.env.BGPOOF_TEST_GA_ID ??=
+  loadEnv('production', process.cwd(), 'VITE_BGPOOF_').VITE_BGPOOF_GA_ID || '';
+
 export default defineConfig({
   testDir: './tests',
   testMatch: '**/*.spec.ts',

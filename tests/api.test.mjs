@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+
+// The Node test runner owns completion and reports failures for these tests.
 import { handleRemoval } from '../edge/removal.mjs';
 
 const ORIGIN = 'https://bgpoof.example';
@@ -101,7 +103,7 @@ async function expectError(response, status) {
   assert.ok(!body.error.includes('private-image-or-secret'));
 }
 
-test('validated upload returns a transparent PNG and limits by Cloudflare IP', async () => {
+void test('validated upload returns a transparent PNG and limits by Cloudflare IP', async () => {
   const env = bindings();
   const response = await handleRemoval(
     request({ headers: { 'x-forwarded-for': 'spoofed' } }),
@@ -120,7 +122,7 @@ test('validated upload returns a transparent PNG and limits by Cloudflare IP', a
   assert.deepEqual(env.calls.outputs, [{ format: 'image/png' }]);
 });
 
-test('rejects unsupported methods and cross-origin mutations without calling Images', async () => {
+void test('rejects unsupported methods and cross-origin mutations without calling Images', async () => {
   for (const [options, status] of [
     [{ method: 'GET' }, 405],
     [{ method: 'OPTIONS' }, 405],
@@ -142,7 +144,7 @@ test('rejects unsupported methods and cross-origin mutations without calling Ima
   }
 });
 
-test('requires platform IP and both bindings, and fails closed on limiter failure', async () => {
+void test('requires platform IP and both bindings, and fails closed on limiter failure', async () => {
   for (const missing of ['REMOVAL_LIMITER', 'IMAGES']) {
     const env = bindings();
     delete env[missing];
@@ -168,7 +170,7 @@ test('requires platform IP and both bindings, and fails closed on limiter failur
   await expectError(await handleRemoval(request(), malformed), 503);
 });
 
-test('rate limit rejection precedes image decoding and inference', async () => {
+void test('rate limit rejection precedes image decoding and inference', async () => {
   const env = bindings({ limited: true });
   const response = await handleRemoval(request(), env);
   assert.equal(response.headers.get('retry-after'), '60');
@@ -177,7 +179,7 @@ test('rate limit rejection precedes image decoding and inference', async () => {
   assert.equal(env.calls.inputs.length, 0);
 });
 
-test('enforces actual streamed bytes despite absent or dishonest content length', async () => {
+void test('enforces actual streamed bytes despite absent or dishonest content length', async () => {
   for (const length of [null, '8']) {
     let cancelled = false;
     let chunk = 0;
@@ -203,7 +205,7 @@ test('enforces actual streamed bytes despite absent or dishonest content length'
   }
 });
 
-test('accepts exactly 2MiB, all allowed formats, and the maximum dimensions', async () => {
+void test('accepts exactly 2MiB, all allowed formats, and the maximum dimensions', async () => {
   for (const format of ['image/jpeg', 'image/png', 'image/webp']) {
     const env = bindings({ metadata: { format, width: 1536, height: 1536 } });
     const response = await handleRemoval(
@@ -219,7 +221,7 @@ test('accepts exactly 2MiB, all allowed formats, and the maximum dimensions', as
   }
 });
 
-test('empty, broken, unsupported, malformed, and oversized images never reach inference', async () => {
+void test('empty, broken, unsupported, malformed, and oversized images never reach inference', async () => {
   const cases = [
     [request({ body: null }), bindings(), 400],
     [request({ body: new Uint8Array() }), bindings(), 400],
@@ -265,7 +267,7 @@ test('empty, broken, unsupported, malformed, and oversized images never reach in
   }
 });
 
-test('maps provider quota, rate, invalid-image, and unexpected errors without exposing details', async () => {
+void test('maps provider quota, rate, invalid-image, and unexpected errors without exposing details', async () => {
   for (const [error, status] of [
     [{ code: 9422 }, 503],
     [{ code: '9422', status: 400 }, 503],
@@ -285,7 +287,7 @@ test('maps provider quota, rate, invalid-image, and unexpected errors without ex
   await expectError(await handleRemoval(request(), env), 503);
 });
 
-test('aborting before or during upload cancels the read and never reaches Images', async () => {
+void test('aborting before or during upload cancels the read and never reaches Images', async () => {
   const before = new AbortController();
   before.abort();
   const env = bindings();
@@ -312,7 +314,7 @@ test('aborting before or during upload cancels the read and never reaches Images
   assert.equal(env.calls.infos.length, 0);
 });
 
-test('aborting during metadata validation prevents segmentation', async () => {
+void test('aborting during metadata validation prevents segmentation', async () => {
   const controller = new AbortController();
   const env = bindings({
     infoHook() {
@@ -327,7 +329,7 @@ test('aborting during metadata validation prevents segmentation', async () => {
   assert.equal(env.calls.inputs.length, 0);
 });
 
-test('an abort during a failing limiter call does not leave an unhandled rejection', async () => {
+void test('an abort during a failing limiter call does not leave an unhandled rejection', async () => {
   const controller = new AbortController();
   const env = bindings();
   env.REMOVAL_LIMITER.limit = () => {
@@ -341,7 +343,7 @@ test('an abort during a failing limiter call does not leave an unhandled rejecti
   assert.equal(env.calls.infos.length, 0);
 });
 
-test('aborting after inference starts stops waiting without starting another transform', async () => {
+void test('aborting after inference starts stops waiting without starting another transform', async () => {
   const controller = new AbortController();
   const env = bindings({
     outputHook() {
@@ -356,7 +358,7 @@ test('aborting after inference starts stops waiting without starting another tra
   assert.equal(env.calls.outputs.length, 1);
 });
 
-test('the public response advertises only a recognized private matte protocol', async () => {
+void test('the public response advertises only a recognized private matte protocol', async () => {
   const mask = new Uint8Array(26);
   const header = new DataView(mask.buffer);
   header.setUint32(0, 0x89504e47);

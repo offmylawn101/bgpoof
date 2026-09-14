@@ -246,7 +246,8 @@ test('real API upload, wipe, copyable PNG, drop, clipboard, and bounded photo tr
       ) &&
       url.pathname === '/g/collect' &&
       url.searchParams.get('v') === '2' &&
-      url.searchParams.get('tid') === 'G-2L8534ZQ4J' &&
+      Boolean(process.env.BGPOOF_TEST_GA_ID) &&
+      url.searchParams.get('tid') === process.env.BGPOOF_TEST_GA_ID &&
       analyticsEvents.every((event) => !event.has('tid')) &&
       bytes < 32768 &&
       !/image\/|data:image|iVBORw0KGgo|\/9j\/|\.(?:jpe?g|png|webp)(?:$|[\s?&#])/i.test(
@@ -357,13 +358,15 @@ test('real API upload, wipe, copyable PNG, drop, clipboard, and bounded photo tr
   expect(Math.max(...timings)).toBeLessThan(1500);
 
   // A second real photo through the global drop entrypoint.
-  const person = await fs.readFile('tests/person.jpg');
+  const portrait = await fs.readFile('tests/fixtures/portrait.jpg');
   const secondStart = Date.now();
   await page.evaluate(
     ({ bytes }) => {
       const transfer = new DataTransfer();
       transfer.items.add(
-        new File([new Uint8Array(bytes)], 'person.jpg', { type: 'image/jpeg' }),
+        new File([new Uint8Array(bytes)], 'portrait.jpg', {
+          type: 'image/jpeg',
+        }),
       );
       window.dispatchEvent(
         new DragEvent('dragenter', { dataTransfer: transfer, bubbles: true }),
@@ -376,7 +379,7 @@ test('real API upload, wipe, copyable PNG, drop, clipboard, and bounded photo tr
         }),
       );
     },
-    { bytes: [...person] },
+    { bytes: [...portrait] },
   );
   await expect(
     page.getByRole('heading', { name: 'A little disappearing act…' }),
@@ -387,20 +390,20 @@ test('real API upload, wipe, copyable PNG, drop, clipboard, and bounded photo tr
     revealCompleteMs: second.revealedAt - secondStart,
   };
   expect(photoUploads).toHaveLength(2);
-  const personStats = await pngStats(page);
-  expect(personStats).toMatchObject({
-    width: 960,
-    height: 1440,
+  const portraitStats = await pngStats(page);
+  expect(portraitStats).toMatchObject({
+    width: 821,
+    height: 1024,
     type: 'image/png',
   });
-  expect(personStats.transparent).toBeGreaterThan(0.1);
-  expect(personStats.opaque).toBeGreaterThan(0.1);
-  const portraitImage = await resultImage(page, 960, 1440, true);
-  const [personDownload] = await Promise.all([
+  expect(portraitStats.transparent).toBeGreaterThan(0.1);
+  expect(portraitStats.opaque).toBeGreaterThan(0.1);
+  const portraitImage = await resultImage(page, 821, 1024, true);
+  const [portraitDownload] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('link', { name: 'Download PNG' }).click(),
   ]);
-  await personDownload.saveAs(testInfo.outputPath('person-cutout.png'));
+  await portraitDownload.saveAs(testInfo.outputPath('portrait-cutout.png'));
 
   // Actual OS clipboard and keyboard paste with a PNG that already contains alpha.
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -434,7 +437,7 @@ test('real API upload, wipe, copyable PNG, drop, clipboard, and bounded photo tr
         firstTiming,
         secondTiming,
         stats,
-        personStats,
+        portraitStats,
         landscapeImage,
         portraitImage,
         pasted,

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+
+// The Node test runner owns completion and reports failures for these tests.
 import ts from 'typescript';
 
 // Exercise the same standalone module that runs in the photo worker.
@@ -36,7 +38,7 @@ function alphaError(image, expected) {
   return error / (image.width * image.height);
 }
 
-test('constant transparency stays constant even over a textured photograph', () => {
+void test('constant transparency stays constant even over a textured photograph', () => {
   const photo = pixels(79, 53, (x, y) => [
     (x * 71 + y * 3) % 256,
     (x * 13 + y * 47) % 256,
@@ -51,7 +53,7 @@ test('constant transparency stays constant even over a textured photograph', () 
   }
 });
 
-test('certain foreground and background remain exact and RGB is untouched', () => {
+void test('certain foreground and background remain exact and RGB is untouched', () => {
   const mask = pixels(83, 57, (x, y) => [
     (x * 7) % 256,
     (y * 11) % 256,
@@ -79,7 +81,7 @@ test('certain foreground and background remain exact and RGB is untouched', () =
   }
 });
 
-test('a translucent surface between foreground and background keeps its opacity', () => {
+void test('a translucent surface between foreground and background keeps its opacity', () => {
   const mask = pixels(73, 41, (x) => [
     43,
     97,
@@ -101,7 +103,7 @@ test('a translucent surface between foreground and background keeps its opacity'
   );
 });
 
-test('an image-aligned diagonal edge improves without inventing foreground', () => {
+void test('an image-aligned diagonal edge improves without inventing foreground', () => {
   const width = 97;
   const height = 73;
   // Ground truth is a subpixel edge; the model mask has a wider uncertain band.
@@ -141,7 +143,7 @@ test('an image-aligned diagonal edge improves without inventing foreground', () 
   }
 });
 
-test('fine opaque strands and separate transparent gaps survive refinement', () => {
+void test('fine opaque strands and separate transparent gaps survive refinement', () => {
   const width = 93;
   const height = 79;
   const coverage = (x, y) => {
@@ -185,7 +187,7 @@ test('fine opaque strands and separate transparent gaps survive refinement', () 
   );
 });
 
-test('tiny and extreme-aspect images stay valid', () => {
+void test('tiny and extreme-aspect images stay valid', () => {
   for (const [width, height] of [
     [1, 1],
     [1, 19],

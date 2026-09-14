@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const measurementId = 'G-2L8534ZQ4J';
+const measurementId = process.env.BGPOOF_TEST_GA_ID || '';
 const tagUrl = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
 
 test('Google Analytics initializes once on each page without blocking the app', async ({
@@ -20,6 +20,13 @@ test('Google Analytics initializes once on each page without blocking the app', 
   );
 
   const checkInitialization = async () => {
+    if (!measurementId) {
+      await expect(
+        page.locator('script[src*="googletagmanager.com"]'),
+      ).toHaveCount(0);
+      expect(await page.evaluate(() => 'dataLayer' in window)).toBe(false);
+      return;
+    }
     const scripts = page.locator(`head script[src="${tagUrl}"]`);
     await expect(scripts).toHaveCount(1);
     await expect(scripts).toHaveAttribute('async', '');
@@ -66,7 +73,7 @@ test('Google Analytics initializes once on each page without blocking the app', 
     'true',
   );
   await checkInitialization();
-  expect(tagRequests).toEqual([tagUrl, tagUrl, tagUrl]);
+  expect(tagRequests).toEqual(measurementId ? [tagUrl, tagUrl, tagUrl] : []);
   expect(errors).toEqual([]);
 });
 

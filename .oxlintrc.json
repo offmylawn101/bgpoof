@@ -23,6 +23,10 @@
     "typeCheck": true
   },
   "ignorePatterns": [
+    "work/**",
+    "outputs/**",
+    "test-results/**",
+    "playwright-report/**",
     ".next/**",
     ".vinext/**",
     "out/**",

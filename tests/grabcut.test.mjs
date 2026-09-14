@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+
+// The Node test runner owns completion and reports failures for these tests.
 import { applyGrabCut } from '../edge/grabcut.mjs';
 
 const image = new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'image/jpeg' });
@@ -24,7 +26,7 @@ function env(fetch) {
 }
 const response = () => new Response(baseline);
 
-test('refinement follows segmentation with a framed compact source and mask', async () => {
+void test('refinement follows segmentation with a framed compact source and mask', async () => {
   let calls = 0;
   const refined = await applyGrabCut(
     image,
@@ -65,7 +67,7 @@ test('refinement follows segmentation with a framed compact source and mask', as
   assert.equal(refined.response.headers.get('x-private-header'), null);
 });
 
-test('missing service configuration retains the original streaming response', async () => {
+void test('missing service configuration retains the original streaming response', async () => {
   const original = response();
   const result = await applyGrabCut(
     image,
@@ -78,7 +80,7 @@ test('missing service configuration retains the original streaming response', as
   assert.equal(result.applied, false);
 });
 
-test('legacy and unknown private formats do not enable RGB correction', async () => {
+void test('legacy and unknown private formats do not enable RGB correction', async () => {
   for (const format of [null, 'unknown-version']) {
     const headers = { 'Content-Type': 'image/png' };
     if (format) headers['x-bgpoof-matte-format'] = format;
@@ -94,7 +96,7 @@ test('legacy and unknown private formats do not enable RGB correction', async ()
   }
 });
 
-test('busy, failed and invalid private responses preserve the existing cutout', async () => {
+void test('busy, failed and invalid private responses preserve the existing cutout', async () => {
   for (const fetch of [
     async () => new Response('private-image-or-secret', { status: 503 }),
     async () =>
@@ -127,7 +129,7 @@ test('busy, failed and invalid private responses preserve the existing cutout', 
   }
 });
 
-test('refinement deadline cancels the request and keeps the base result', async () => {
+void test('refinement deadline cancels the request and keeps the base result', async () => {
   let requestSignal;
   const keepAlive = setTimeout(() => {}, 1000);
   try {
@@ -153,7 +155,7 @@ test('refinement deadline cancels the request and keeps the base result', async 
   }
 });
 
-test('user cancellation aborts private work instead of delivering a fallback result', async () => {
+void test('user cancellation aborts private work instead of delivering a fallback result', async () => {
   const controller = new AbortController();
   let requestSignal;
   const task = applyGrabCut(
@@ -171,7 +173,7 @@ test('user cancellation aborts private work instead of delivering a fallback res
   assert.equal(requestSignal.aborted, true);
 });
 
-test('oversized or stalled private response bodies are cancelled', async () => {
+void test('oversized or stalled private response bodies are cancelled', async () => {
   let cancelled = false;
   const huge = new ReadableStream({
     pull(controller) {
