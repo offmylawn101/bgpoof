@@ -266,7 +266,7 @@ test('real API upload, wipe, copyable PNG, drop, clipboard, and bounded photo tr
     'true',
   );
   await expect(
-    page.getByRole('heading', { name: 'Remove the background.' }),
+    page.getByRole('heading', { name: 'Remove photo backgrounds.' }),
   ).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Upload image' }),
@@ -526,7 +526,7 @@ test('invalid files, API error, retry, and cancellation ignore a late result', a
   ).toBeVisible();
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(
-    page.getByRole('heading', { name: 'Remove the background.' }),
+    page.getByRole('heading', { name: 'Remove photo backgrounds.' }),
   ).toBeVisible();
   releaseLateResult();
   await lateResultFinished;

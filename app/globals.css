@@ -210,7 +210,7 @@ main {
 }
 .paste-copy {
   font-size: 12px;
-  color: #818796;
+  color: #626b7b;
   margin: 0 0 18px;
 }
 kbd {
@@ -223,7 +223,7 @@ kbd {
 }
 .file-hint {
   font-size: 12px;
-  color: #737a89;
+  color: #626b7b;
 }
 .privacy-inline {
   color: #6c7383;
@@ -389,9 +389,11 @@ kbd {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 18px 28px;
+  padding: 24px 0;
   font-size: 12px;
-  color: #777e8c;
+  color: #626b7b;
 }
 .site-footer > span:first-child {
   font-weight: 600;
@@ -401,9 +403,6 @@ kbd {
   display: flex;
   align-items: center;
   gap: 4px;
-}
-.footer-dot {
-  padding: 0 8px;
 }
 .result-workspace {
   max-width: 1190px;
@@ -592,6 +591,7 @@ kbd {
 }
 .about-page h1 {
   font-size: 36px;
+  line-height: 1.2;
   font-weight: 750;
   letter-spacing: -1px;
   margin-bottom: 24px;
@@ -608,6 +608,113 @@ kbd {
 .about-page a {
   color: var(--primary);
   text-decoration: underline;
+}
+.site-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 22px;
+}
+.home-help {
+  max-width: 1060px;
+  margin: 72px auto;
+  padding: 48px 28px 0;
+  border-top: 1px solid #eceef2;
+  line-height: 1.7;
+}
+.home-help h2 {
+  font-size: clamp(24px, 3vw, 30px);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.6px;
+  margin: 0 0 18px;
+}
+.home-help p {
+  color: #596070;
+  margin-bottom: 16px;
+  max-width: 75ch;
+}
+.home-help a {
+  color: #2446d5;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.how-steps {
+  list-style: none;
+  padding: 0;
+  margin: 32px 0 48px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 30px;
+}
+.how-steps h3 {
+  font-size: 18px;
+  font-weight: 650;
+  margin-bottom: 8px;
+}
+.home-questions details {
+  border-bottom: 1px solid #e3e6ee;
+  padding: 17px 0;
+}
+.home-questions summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.home-questions details p {
+  margin: 12px 0 0;
+}
+.guide-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 32px;
+  margin-top: 32px;
+}
+.guide-page .guide-intro {
+  font-size: 19px;
+}
+.breadcrumbs {
+  font-size: 14px;
+  color: #596070;
+  margin-bottom: 22px;
+}
+.guide-page ol,
+.guide-page ul {
+  list-style: revert;
+  padding-left: 24px;
+  color: #596070;
+}
+.guide-page li {
+  margin-bottom: 12px;
+}
+.guide-page .guide-cta {
+  display: inline-block;
+  padding: 10px 18px;
+  background: var(--primary);
+  color: white;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.related-guides {
+  margin-top: 42px;
+  border-top: 1px solid #e3e6ee;
+}
+.no-script {
+  max-width: 750px;
+  padding: 24px;
+  margin: auto;
+}
+@media (max-width: 800px) {
+  .how-steps {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .site-footer nav {
+    justify-content: center;
+  }
+  .home-help {
+    margin-top: 48px;
+    padding: 32px 24px 0;
+  }
 }
 @keyframes spin {
   to {

@@ -21,6 +21,8 @@ jobs:
       - run: npm run test:api
       - run: npm run test:mask
       - run: npm run build
+      - run: npx playwright install --with-deps chrome
+      - run: npm run test:seo
 
   refinement:
     runs-on: ubuntu-latest

@@ -28,6 +28,7 @@ await writeFile(
 
 const siteUrl = loadEnv('production', process.cwd()).VITE_BGPOOF_SITE_URL;
 let redirect = '';
+let canonicalHeaders = '';
 if (siteUrl) {
   const canonical = new URL(siteUrl);
   if (!['http:', 'https:'].includes(canonical.protocol)) {
@@ -41,6 +42,9 @@ if (siteUrl) {
       return Response.redirect(${origin} + url.pathname + url.search, 308);
     }
 `;
+  canonicalHeaders = `
+    if (url.hostname !== ${hostname}) headers.set('X-Robots-Tag', 'noindex, follow');
+`;
 }
 
 // Asset headers are handled by public/_headers. HTML needs headers on the Worker response.
@@ -51,10 +55,16 @@ export default {
   async fetch(request, env, context) {
     const url = new URL(request.url);
 ${redirect}
+    if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname.length > 1 && url.pathname.endsWith('/') && !url.pathname.startsWith('/api/')) {
+      url.pathname = url.pathname.replace(/\\/+$/, '');
+      return Response.redirect(url.href, 308);
+    }
     const response = await app.fetch(request, env, context);
     const headers = new Headers(response.headers);
     headers.set('X-Content-Type-Options', 'nosniff');
     headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+${canonicalHeaders}
+    if (response.status >= 400 || url.pathname.startsWith('/api/')) headers.set('X-Robots-Tag', 'noindex');
     return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
   }
 };
