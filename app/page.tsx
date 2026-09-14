@@ -359,7 +359,7 @@ export default function Home() {
                   {busy
                     ? 'A little disappearing act…'
                     : photo.result
-                      ? 'Background? Gone.'
+                      ? 'Background removed.'
                       : 'Let’s try that again.'}
                 </h1>
               </div>
@@ -424,8 +424,7 @@ export default function Home() {
                     </span>
                     <h2>All yours.</h2>
                     <p>
-                      A transparent background.
-                      <br />
+                      A transparent background. <br />
                       Your original resolution.
                     </p>
                     <a
