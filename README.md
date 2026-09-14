@@ -10,6 +10,8 @@ The browser retains the original image for final compositing. It uploads one ima
 
 The Worker uses the [Cloudflare Images binding](https://developers.cloudflare.com/images/optimization/binding/) for foreground segmentation. If configured, a private server automatically receives the same upload and mask to refine edge transparency and apply bounded color corrections. Its adjustments stay near existing mask boundaries; GrabCut and broad foreground recovery have been removed. Otherwise, or if that service fails or is busy, processing continues with the Cloudflare mask and a browser edge filter. There is no second browser upload.
 
+Automatic GrabCut recovery was removed after it restored ground beneath a fly that Cloudflare had correctly cleared. It helped recover missed foil in another test, but also introduced unwanted background. Edge matting retains the boundary cleanup without that broad recovery step.
+
 The browser applies the result to original pixels and existing transparency, then encodes a PNG at the original dimensions. A smaller preview appears first; the progress indicator continues through the actual processing stages until the downloadable PNG is ready. It does not estimate a percentage for operations that provide none. The completed image replaces the preview for native copying.
 
 Application code does not persist uploads or results. The optional native service processes images in memory and does not log their contents. Cloudflare still processes the uploaded image under its own service terms. Browser working images are released when replaced, cleared, or the page closes. Google Analytics is disabled by default in self-hosted copies; deployments can enable their own analytics. Photo contents are not sent to analytics.

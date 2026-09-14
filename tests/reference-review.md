@@ -1,8 +1,10 @@
 # remove.bg reference review
 
-Date: 2026-09-13 UTC. Desktop Chromium 144, viewport 1440 × 1000, fresh unauthenticated contexts. Public test image only. This directory is research evidence and is outside the project checkout.
+Date: 2026-09-13 UTC. Desktop Chromium 144, viewport 1440 × 1000, fresh unauthenticated contexts. Public test image only.
 
-## Verified current site status
+This is a historical review of remove.bg, not a description of BG Poof's current behavior. The research artifacts named below are not included in this repository. See [README.md](../README.md) for the current pipeline and [ASSETS.md](ASSETS.md) for the maintained test photograph.
+
+## Site status observed on the review date
 
 The live homepage banner announces moving background removal to Canva and ending the standalone website on 1 December 2026 at 9:00am CET. The banner links to https://www.remove.bg/faq. Canva account/payment requirements were not tested; the current remove.bg upload works without an account for initial test runs.
 
@@ -38,7 +40,7 @@ The Download menu was successfully opened after file upload. For the 960 × 1440
 - paste-result.png: hCaptcha restriction after real clipboard paste initiated processing.
 - file-observations.json: sampled DOM ranges/clip paths during actual removal.
 - sequence.png: 4 × 4 video contact sheet, showing processing sparkles and right-to-left wipe.
-- video-file/*.webm and video-upload/*.webm: recorded sessions.
+- video-file/_.webm and video-upload/_.webm: recorded sessions.
 - public-sample.jpg: public non-sensitive source image used for testing; 960 × 1440.
 - reference-app.js: downloaded public production browser asset used to confirm animation timing. Research only; do not copy it into the implementation.
 
