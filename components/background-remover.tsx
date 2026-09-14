@@ -303,51 +303,63 @@ export default function BackgroundRemover({
           }}
         />
         {!photo ? (
-          <section className="home-workspace" aria-labelledby="main-heading">
-            <div className="intro">
-              <span className="eyebrow">
-                <Sparkles size={15} /> A little less background. A lot more
-                photo.
-              </span>
-              <h1 id="main-heading">
-                Remove photo
-                <br />
-                <span>backgrounds.</span>
-              </h1>
-              <p>
-                Your photo, minus the distractions.
-                <br />
-                Drop it in. Get a transparent PNG.
-              </p>
-              <ProcessingStats />
-            </div>
-            <div className="upload-card">
-              <div className="upload-icon">
-                <ImagePlus size={31} strokeWidth={1.6} />
+          <>
+            <section className="home-hero" aria-labelledby="main-heading">
+              <div className="home-workspace">
+                <div className="intro">
+                  <span className="eyebrow">
+                    <Sparkles size={15} /> A little less background. A lot more
+                    photo.
+                  </span>
+                  <h1 id="main-heading">
+                    Remove photo
+                    <br />
+                    <span>backgrounds.</span>
+                  </h1>
+                  <p>
+                    Your photo, minus the distractions.
+                    <br />
+                    Drop it in. Get a transparent PNG.
+                  </p>
+                </div>
+                <div className="upload-card">
+                  <div className="upload-icon">
+                    <ImagePlus size={31} strokeWidth={1.6} />
+                  </div>
+                  <Button
+                    className="primary-button upload-button"
+                    disabled={!ready}
+                    onClick={() => input.current?.click()}
+                  >
+                    <Upload size={20} /> Upload image
+                  </Button>
+                  <p className="drop-copy">or drop a photo anywhere</p>
+                  <p className="paste-copy">
+                    You can also paste with <kbd>Ctrl</kbd> + <kbd>V</kbd>
+                    <span className="mac-hint">
+                      {' '}
+                      / <kbd>⌘</kbd> + <kbd>V</kbd>
+                    </span>
+                  </p>
+                  <span className="file-hint">
+                    JPG, PNG, WebP · up to 25 MB / 25 MP
+                  </span>
+                  <div className="privacy-inline">
+                    <ShieldCheck size={16} /> Processed securely by Cloudflare.
+                  </div>
+                </div>
               </div>
-              <Button
-                className="primary-button upload-button"
-                disabled={!ready}
-                onClick={() => input.current?.click()}
-              >
-                <Upload size={20} /> Upload image
-              </Button>
-              <p className="drop-copy">or drop a photo anywhere</p>
-              <p className="paste-copy">
-                You can also paste with <kbd>Ctrl</kbd> + <kbd>V</kbd>
-                <span className="mac-hint">
-                  {' '}
-                  / <kbd>⌘</kbd> + <kbd>V</kbd>
-                </span>
-              </p>
-              <span className="file-hint">
-                JPG, PNG, WebP · up to 25 MB / 25 MP
-              </span>
-              <div className="privacy-inline">
-                <ShieldCheck size={16} /> Processed securely by Cloudflare.
-              </div>
-            </div>
-            <div className="demo-section">
+              <footer className="hero-footer">
+                <ProcessingStats />
+                <p className="project-credit">
+                  Project by <a href="https://offmylawn.com/">offmylawn</a>
+                </p>
+              </footer>
+            </section>
+            <section
+              className="demo-section"
+              aria-label="Background removal example"
+            >
               <div className="demo-caption">
                 <span>See what disappears.</span>
                 <Button
@@ -370,8 +382,8 @@ export default function BackgroundRemover({
                 <ChevronLeft size={14} />
                 <ChevronRight size={14} /> Slide to see the difference
               </p>
-            </div>
-          </section>
+            </section>
+          </>
         ) : (
           <section
             className="result-workspace"

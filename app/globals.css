@@ -22,6 +22,7 @@
   --font-sans: Arial, Helvetica, sans-serif;
 }
 :root {
+  --site-header-height: 100px;
   --background: #fff;
   --foreground: #252838;
   --primary: #3155ef;
@@ -66,7 +67,7 @@ button {
   flex-direction: column;
 }
 .site-header {
-  height: 100px;
+  height: var(--site-header-height);
   padding: 0 6%;
   display: flex;
   align-items: center;
@@ -118,14 +119,43 @@ main {
   width: 100%;
   flex: 1;
 }
-.home-workspace {
+.home-hero {
   max-width: 1060px;
-  margin: 68px auto 50px;
-  padding: 0 28px;
+  min-height: calc(100svh - var(--site-header-height));
+  margin: 0 auto;
+  padding: 40px 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.home-workspace {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 36px 65px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 65px;
   align-items: center;
+}
+.hero-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 48px;
+  padding-top: 20px;
+  border-top: 1px solid #eceef2;
+  color: #596070;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.hero-footer p {
+  margin: 0;
+}
+.project-credit {
+  text-align: right;
+}
+.project-credit a {
+  color: #2446d5;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .eyebrow {
   color: #626c80;
@@ -213,21 +243,12 @@ main {
   color: #626b7b;
   margin: 0 0 18px;
 }
-.intro .processing-stats {
-  min-height: 42px;
-  margin: 20px 0 0;
-  color: #596070;
-  font-size: 14px;
-  line-height: 1.5;
+.processing-stats {
+  min-height: 1.5em;
 }
 .processing-stats strong {
   color: var(--foreground);
   font-variant-numeric: tabular-nums;
-}
-.stats-since {
-  display: block;
-  color: #626b7b;
-  font-size: 12px;
 }
 kbd {
   background: #f7f8fb;
@@ -258,10 +279,8 @@ kbd {
   border-radius: 0 0 20px 20px;
 }
 .demo-section {
-  grid-column: 1 / -1;
-  max-width: 600px;
-  width: 100%;
-  margin: 12px auto 0;
+  width: min(600px, calc(100% - 56px));
+  margin: 48px auto 0;
 }
 .demo-caption {
   display: flex;
@@ -753,19 +772,15 @@ kbd {
     transform: translateX(380%);
   }
 }
-@media (min-width: 1500px) {
-  .home-workspace {
-    margin-top: 90px;
-  }
-}
 @media (max-width: 800px) {
+  :root {
+    --site-header-height: 80px;
+  }
   .site-header {
     padding: 0 24px;
-    height: 80px;
   }
   .home-workspace {
     gap: 35px;
-    margin-top: 42px;
   }
   .intro h1 {
     letter-spacing: -2px;
@@ -801,9 +816,11 @@ kbd {
   }
 }
 @media (max-width: 600px) {
+  :root {
+    --site-header-height: 76px;
+  }
   .site-header {
     padding: 0 20px;
-    height: 76px;
   }
   .wordmark {
     font-size: 28px;
@@ -812,12 +829,19 @@ kbd {
     font-size: 12px;
     gap: 6px;
   }
+  .home-hero {
+    padding: 24px 23px;
+  }
   .home-workspace {
     display: flex;
     flex-direction: column;
-    padding: 0 23px;
-    margin: 37px auto;
     gap: 28px;
+  }
+  .hero-footer {
+    margin-top: 32px;
+    padding-top: 18px;
+    font-size: 12px;
+    gap: 12px;
   }
   .intro {
     text-align: center;
@@ -829,7 +853,7 @@ kbd {
     letter-spacing: 0;
   }
   .intro h1 {
-    font-size: 48px;
+    font-size: clamp(36px, 12vw, 48px);
     margin-top: 18px;
     margin-bottom: 16px;
   }
@@ -854,7 +878,8 @@ kbd {
     margin-bottom: 18px;
   }
   .demo-section {
-    margin-top: 6px;
+    width: calc(100% - 46px);
+    max-width: 410px;
   }
   .demo-comparison {
     aspect-ratio: 4 / 3;
@@ -928,6 +953,34 @@ kbd {
   }
   .drop-overlay h2 {
     font-size: 27px;
+  }
+}
+@media (max-width: 600px) and (max-height: 740px) {
+  .home-hero {
+    padding-block: 16px;
+  }
+  .home-workspace {
+    gap: 20px;
+  }
+  .hero-footer {
+    margin-top: 24px;
+    padding-top: 16px;
+  }
+  .intro h1 {
+    font-size: clamp(34px, 10vw, 40px);
+  }
+  .upload-card {
+    min-height: 292px;
+    padding-top: 18px;
+  }
+  .upload-icon {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 14px;
+  }
+  .upload-card .privacy-inline {
+    margin-top: 16px;
+    padding-block: 12px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -41,9 +41,9 @@ export default function About() {
         </p>
         <h2>Analytics</h2>
         <p>
-          The homepage shows a shared count of successfully processed images,
-          with the date counting started. It counts completed server responses,
-          not unique people or downloads. Earlier removals are not included.
+          The homepage shows a shared count of successfully processed images. It
+          counts completed server responses, not unique people or downloads.
+          Only removals recorded since the counter was enabled are included.
           This counter stores only the total and start date, with no photos or
           personal information.
         </p>

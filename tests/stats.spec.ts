@@ -33,12 +33,14 @@ test('the shared processing count loads independently without moving the mobile 
   expect(before.y + before.height).toBeLessThan(844);
   await expect(page.locator('.processing-stats')).toBeEmpty();
   finish();
-  await expect(page.locator('.processing-stats')).toContainText(
+  await expect(page.locator('.processing-stats')).toHaveText(
     '12,345 images processed',
   );
-  await expect(page.locator('.processing-stats')).toContainText(
-    'Since Sep 14, 2026',
-  );
+  await expect(
+    page
+      .locator('.hero-footer')
+      .getByRole('link', { name: 'offmylawn', exact: true }),
+  ).toHaveAttribute('href', 'https://offmylawn.com/');
   const after = (await upload.boundingBox())!;
   expect(after.y).toBe(before.y);
   expect(

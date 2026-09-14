@@ -3,10 +3,7 @@
 import { useEffect, useState } from 'react';
 
 export function ProcessingStats() {
-  const [stats, setStats] = useState<{
-    imagesProcessed: number;
-    since: string;
-  } | null>(null);
+  const [count, setCount] = useState<number | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -16,20 +13,14 @@ export function ProcessingStats() {
       .then(async (response) => {
         const data = (await response.json()) as {
           imagesProcessed?: unknown;
-          since?: unknown;
         } | null;
         if (!response.ok) return;
         if (
           typeof data?.imagesProcessed === 'number' &&
           Number.isSafeInteger(data.imagesProcessed) &&
-          data.imagesProcessed >= 0 &&
-          typeof data.since === 'string' &&
-          Number.isFinite(Date.parse(data.since))
+          data.imagesProcessed >= 0
         )
-          setStats({
-            imagesProcessed: data.imagesProcessed,
-            since: data.since,
-          });
+          setCount(data.imagesProcessed);
       })
       .catch(() => {})
       .finally(() => clearTimeout(timeout));
@@ -41,19 +32,10 @@ export function ProcessingStats() {
 
   return (
     <p className="processing-stats">
-      {stats && (
+      {count !== null && (
         <>
-          <strong>{stats.imagesProcessed.toLocaleString('en-US')}</strong>{' '}
-          {stats.imagesProcessed === 1 ? 'image processed' : 'images processed'}
-          <span className="stats-since">
-            Since{' '}
-            {new Intl.DateTimeFormat('en-US', {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-              timeZone: 'UTC',
-            }).format(new Date(stats.since))}
-          </span>
+          <strong>{count.toLocaleString('en-US')}</strong>{' '}
+          {count === 1 ? 'image processed' : 'images processed'}
         </>
       )}
     </p>
