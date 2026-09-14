@@ -24,6 +24,76 @@ MAX_SIDE = 1536
 MAX_PIXELS = 2_400_000
 JOB_SECONDS = 4.0
 READ_SECONDS = 4.0
+MATTE_FORMAT = "delta-rgb-v1"
+
+
+def edge_matte(source, alpha):
+    """Solve I = alpha * F + (1 - alpha) * B in a narrow, supported trimap.
+
+    Nearby confident pixels supply local foreground/background color priors.
+    Color-line projection estimates opacity; the reconstruction residual
+    rejects edges which do not fit that mixture. Foreground estimation then
+    removes background contamination with regularization against the local
+    foreground prior. This is deliberately bounded, not a global matte solve.
+    """
+    import cv2 as cv
+    import numpy as np
+
+    delta = np.zeros(source.shape, np.int16)
+    foreground = cv.erode((alpha >= 239).astype(np.uint8), np.ones((5, 5), np.uint8))
+    background = cv.erode((alpha <= 16).astype(np.uint8), np.ones((3, 3), np.uint8))
+    if not foreground.any() or not background.any():
+        return alpha, delta
+
+    foreground_distance, foreground_labels = cv.distanceTransformWithLabels(
+        1 - foreground, cv.DIST_L2, 5, labelType=cv.DIST_LABEL_PIXEL)
+    background_distance, background_labels = cv.distanceTransformWithLabels(
+        1 - background, cv.DIST_L2, 5, labelType=cv.DIST_LABEL_PIXEL)
+    candidates = ((foreground_distance <= 12) & (background_distance <= 12)
+                  & (foreground == 0) & (background == 0))
+    # Limit work on pathological high-frequency masks. Keep the recovered
+    # matte unchanged when there is no usable boundary or too many candidates.
+    count = np.count_nonzero(candidates)
+    if count == 0 or count > 250_000:
+        return alpha, delta
+    y, x = np.nonzero(candidates)
+
+    def sample_colors(known, labels):
+        weights = cv.boxFilter(known.astype(np.float32), -1, (5, 5), normalize=False)
+        sums = cv.boxFilter(source.astype(np.float32) * known[:, :, None],
+                            -1, (5, 5), normalize=False)
+        # DIST_LABEL_PIXEL numbers zero-valued samples in row-major order.
+        colors = (sums / np.maximum(weights[:, :, None], 1))[known > 0]
+        return colors[labels[y, x] - 1]
+
+    foreground_color = sample_colors(foreground, foreground_labels)
+    background_color = sample_colors(background, background_labels)
+    pixels = source[y, x].astype(np.float32)
+    direction = foreground_color - background_color
+    contrast_squared = np.sum(direction ** 2, axis=1)
+    projection = np.sum((pixels - background_color) * direction, axis=1) / np.maximum(contrast_squared, 1)
+    estimate = np.clip(projection, 0, 1)
+    reconstruction = estimate[:, None] * foreground_color + (1 - estimate[:, None]) * background_color
+    residual = np.sqrt(np.mean((pixels - reconstruction) ** 2, axis=1))
+    supported = ((contrast_squared >= 40 ** 2) & (residual <= 12)
+                 & (projection >= -0.1) & (projection <= 1.1))
+    confidence = (np.clip((12 - residual) / 8, 0, 1)
+                  * np.clip((np.sqrt(contrast_squared) - 40) / 40, 0, 1))
+    confidence[~supported] = 0
+    previous = alpha[y, x].astype(np.float32) / 255
+    opacity = previous + confidence * np.clip(estimate - previous, -0.5, 0.5)
+    matte = alpha.copy()
+    matte[y, x] = np.round(opacity * 255).astype(np.uint8)
+
+    a = opacity[:, None]
+    # Ridge solution for F with alpha and B held fixed. It avoids division by
+    # tiny alpha amplifying compression noise, and leaves opaque cores alone.
+    estimated_foreground = (a * (pixels - (1 - a) * background_color)
+                            + 0.08 * foreground_color) / (a * a + 0.08)
+    correction = (estimated_foreground - pixels) * confidence[:, None]
+    correction[(opacity <= 16 / 255) | (opacity >= 239 / 255)] = 0
+    delta[y, x] = np.round(np.clip(correction, -64, 64)).astype(np.int16)
+    return matte, delta
 
 
 class InvalidImage(ValueError):
@@ -145,8 +215,8 @@ def refine_images(body: bytes) -> tuple[bytes, str]:
     labels = np.full(small_alpha.shape, cv.GC_PR_FGD, np.uint8)
     labels[small_alpha >= 239] = cv.GC_FGD
     border = np.zeros(small_alpha.shape, dtype=bool)
-    border[0, :] = border[-1, :] = True
-    border[:, 0] = border[:, -1] = True
+    border[:4, :] = border[-4:, :] = True
+    border[:, :4] = border[:, -4:] = True
     background = border & (small_alpha < 16)
     labels[background] = cv.GC_BGD
 
@@ -161,11 +231,21 @@ def refine_images(body: bytes) -> tuple[bytes, str]:
         recovered = np.where((labels == cv.GC_FGD) | (labels == cv.GC_PR_FGD), 255, 0).astype(np.uint8)
         recovered = cv.resize(recovered, (width, height), interpolation=cv.INTER_LINEAR)
         alpha = np.maximum(baseline, recovered)
+        # Preserve soft outer boundaries and spatially supported translucent
+        # interiors. Thin uncertain seams inside an opaque recovered object
+        # should stay repaired instead of becoming transparent again.
+        soft = ((baseline > 16) & (baseline < 239)).astype(np.uint8)
+        outer_edge = cv.dilate((alpha <= 16).astype(np.uint8), np.ones((25, 25), np.uint8))
+        soft_interior = cv.morphologyEx(soft, cv.MORPH_OPEN, np.ones((5, 5), np.uint8))
+        preserve = (soft > 0) & ((outer_edge > 0) | (soft_interior > 0))
+        alpha[preserve] = baseline[preserve]
         status = "recovered" if np.any(alpha > baseline) else "unchanged"
 
-    # The caller consumes only alpha. Constant RGB keeps the private response
-    # small; it never replaces the original photo's color channels.
-    output = np.full((height, width, 4), 255, np.uint8)
+    alpha, delta = edge_matte(source, alpha)
+    # Versioned signed RGB deltas preserve the browser's full-resolution photo
+    # rather than replacing its colors with this compact processing copy.
+    output = np.full((height, width, 4), 128, np.uint8)
+    output[:, :, :3] = (delta + 128).astype(np.uint8)
     output[:, :, 3] = alpha
     encoded, png = cv.imencode(".png", output, [cv.IMWRITE_PNG_COMPRESSION, 1])
     if not encoded or png.nbytes > MAX_RESULT_BYTES:
@@ -380,6 +460,7 @@ class RefinementHandler(BaseHTTPRequestHandler):
             png, status, processing_ms = self.server.processor.run(body)
             self.reply(200, png, "image/png", {
                 "X-Bgpoof-Refinement": status,
+                "X-Bgpoof-Matte-Format": MATTE_FORMAT,
                 "Server-Timing": f"grabcut;dur={processing_ms:.1f}",
             })
         except InvalidImage:

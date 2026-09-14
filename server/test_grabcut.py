@@ -11,8 +11,8 @@ import unittest
 import cv2 as cv
 import numpy as np
 
-from grabcut import (InvalidImage, MAX_BODY_BYTES, MAX_SIDE, NativeProcessor,
-                     RefinementServer, image_header, native_worker, refine_images, unpack_images)
+from grabcut import (InvalidImage, MATTE_FORMAT, MAX_BODY_BYTES, MAX_SIDE, NativeProcessor,
+                     RefinementServer, edge_matte, image_header, native_worker, refine_images, unpack_images)
 
 
 def encode(image, extension=".png"):
@@ -83,7 +83,66 @@ class NativeTests(unittest.TestCase):
             png, status = refine_images(body)
             result = cv.imdecode(np.frombuffer(png, np.uint8), cv.IMREAD_UNCHANGED)
             np.testing.assert_array_equal(result[:, :, 3], baseline)
+            self.assertTrue(np.all(result[:, :, :3] == 128))
             self.assertEqual(status, "unchanged")
+
+    def test_matting_recovers_soft_edges_and_removes_color_spill(self):
+        y, x = np.mgrid[:256, :320]
+        boundary = 140 + 20 * np.sin(y / 9) + 6 * np.sin(y / 2)
+        truth = np.clip((boundary - x + 3) / 6, 0, 1).astype(np.float32)
+        foreground = np.full((256, 320, 3), (35, 80, 210), np.float32)
+        background = np.full_like(foreground, (210, 185, 50))
+        source = np.round(truth[:, :, None] * foreground +
+                          (1 - truth[:, :, None]) * background).astype(np.uint8)
+        baseline = np.round(cv.GaussianBlur(truth, (9, 9), 1.5) * 255).astype(np.uint8)
+        matte, delta = edge_matte(source, baseline)
+        uncertain = (truth > 0.01) & (truth < 0.99)
+        before = np.mean(np.abs(baseline[uncertain] / 255 - truth[uncertain]))
+        after = np.mean(np.abs(matte[uncertain] / 255 - truth[uncertain]))
+        self.assertLess(after, before / 4)
+        corrected = np.clip(source.astype(np.int16) + delta, 0, 255)
+        before_color = np.mean(np.abs(source[uncertain].astype(np.float32) - foreground[uncertain]))
+        after_color = np.mean(np.abs(corrected[uncertain] - foreground[uncertain]))
+        self.assertLess(after_color, before_color * 0.6)
+        self.assertLessEqual(np.max(np.abs(delta)), 64)
+        # A correct matte must retain the untouched object's opaque colors.
+        opaque_core = cv.erode((baseline >= 239).astype(np.uint8), np.ones((5, 5), np.uint8)) > 0
+        np.testing.assert_array_equal(matte[opaque_core], baseline[opaque_core])
+        self.assertFalse(np.any(delta[opaque_core]))
+
+    def test_matting_requires_local_color_and_mask_evidence(self):
+        alpha = np.zeros((48, 64), np.uint8)
+        alpha[:, :28] = 255
+        alpha[:, 28:36] = 128
+        # Near-identical foreground/background is underdetermined; a third
+        # edge color that does not fit the F/B line is also unsafe to solve.
+        for mismatch in (False, True):
+            source = np.full((48, 64, 3), 120, np.uint8)
+            if mismatch:
+                source[:, :28] = (30, 30, 200)
+                source[:, 36:] = (200, 30, 30)
+                source[:, 28:36] = (30, 200, 30)
+            matte, delta = edge_matte(source, alpha)
+            np.testing.assert_array_equal(matte, alpha)
+            self.assertFalse(np.any(delta))
+        for value in (0, 128, 255):
+            baseline = np.full((48, 64), value, np.uint8)
+            matte, delta = edge_matte(source, baseline)
+            np.testing.assert_array_equal(matte, baseline)
+            self.assertFalse(np.any(delta))
+
+    def test_grabcut_preserves_interior_translucency(self):
+        image = np.full((96, 96, 3), (200, 50, 20), np.uint8)
+        image[10:86, 10:86] = (20, 70, 210)
+        baseline = np.zeros((96, 96), np.uint8)
+        baseline[10:86, 10:86] = 255
+        baseline[36:60, 36:60] = 100
+        baseline[24:26, 36:60] = 100
+        png, _ = refine_images(envelope(encode(image), encode(np.dstack((image, baseline)))))
+        result = cv.imdecode(np.frombuffer(png, np.uint8), cv.IMREAD_UNCHANGED)
+        np.testing.assert_array_equal(result[36:60, 36:60, 3], baseline[36:60, 36:60])
+        self.assertTrue(np.all(result[36:60, 36:60, :3] == 128))
+        self.assertTrue(np.all(result[24:26, 36:60, 3] == 255))
 
     def test_native_worker_reuse_and_memory_clear(self):
         processor = NativeProcessor()
@@ -162,6 +221,7 @@ class HttpTests(unittest.TestCase):
         self.assertEqual((status, body), (200, b"PNG"))
         self.assertEqual(headers["Content-Type"], "image/png")
         self.assertEqual(headers["X-Bgpoof-Refinement"], "recovered")
+        self.assertEqual(headers["X-Bgpoof-Matte-Format"], MATTE_FORMAT)
         self.assertEqual(headers["Server-Timing"], "grabcut;dur=123.4")
 
     def test_rejects_bad_auth_type_and_images(self):

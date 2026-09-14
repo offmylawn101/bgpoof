@@ -97,11 +97,16 @@ export async function applyGrabCut(
         header[25] !== 6
       )
         throw new Error('Invalid refinement mask.');
-      return png;
+      return {
+        png,
+        matting:
+          refined.headers.get('x-bgpoof-matte-format') === 'delta-rgb-v1',
+      };
     }, deadline);
     return {
-      response: new Response(body),
+      response: new Response(body.png),
       applied: true,
+      matting: body.matting,
       duration: performance.now() - started,
     };
   } catch {

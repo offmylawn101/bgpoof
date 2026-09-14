@@ -4,6 +4,7 @@ import { readFile, writeFile, readdir, rm } from 'node:fs/promises';
 for (const [source, output] of [
   ['lib/removal.worker.ts', 'public/removal.worker.mjs'],
   ['lib/refine-mask.ts', 'public/refine-mask.js'],
+  ['lib/edge-colors.ts', 'public/edge-colors.js'],
 ])
   await writeFile(
     output,

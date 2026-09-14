@@ -48,8 +48,11 @@ test('measure downloaded cutout quality against the supplied reference', async (
   const uploadByteSources: string[] = [];
   const uploadMeasurements: Promise<void>[] = [];
   const uploadMeasurementErrors: string[] = [];
-  const pipeline: { refinement: string | null; serverTiming: string | null }[] =
-    [];
+  const pipeline: {
+    refinement: string | null;
+    matteFormat: string | null;
+    serverTiming: string | null;
+  }[] = [];
   const modelRuntimeRequests: string[] = [];
   const origin = new URL(process.env.BASE_URL || 'http://localhost:3090')
     .origin;
@@ -75,6 +78,7 @@ test('measure downloaded cutout quality against the supplied reference', async (
           if (!response) throw new Error('Photo upload has no response.');
           pipeline.push({
             refinement: await response.headerValue('x-bgpoof-refinement'),
+            matteFormat: await response.headerValue('x-bgpoof-matte-format'),
             serverTiming: await response.headerValue('server-timing'),
           });
           const failure = await response.finished();
@@ -301,6 +305,13 @@ test('measure downloaded cutout quality against the supplied reference', async (
       'grabcut',
     );
     expect(pipeline[0].serverTiming).toMatch(/grabcut;dur=/);
+  }
+  if (process.env.BGPOOF_REQUIRE_MATTING === '1') {
+    expect(pipeline).toHaveLength(1);
+    expect(
+      pipeline[0].matteFormat,
+      'Initial removal must include edge matting',
+    ).toBe('delta-rgb-v1');
   }
   expect(uploadBytes[0]).toBeGreaterThan(0);
   expect(uploadBytes[0]).toBeLessThanOrEqual(2 * 1024 * 1024);

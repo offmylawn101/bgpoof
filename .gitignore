@@ -41,6 +41,7 @@ next-env.d.ts
 /public/runtime/
 /public/removal.worker.mjs
 /public/refine-mask.js
+/public/edge-colors.js
 /public/source/
 /test-results/
 /playwright-report/

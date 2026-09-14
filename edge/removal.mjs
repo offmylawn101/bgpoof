@@ -242,6 +242,7 @@ export async function handleRemoval(request, env) {
         'Content-Type': 'image/png',
         'Server-Timing': `validate;dur=${validated - started}, segment;dur=${segmented - validated}, grabcut;dur=${refined.duration}`,
         'X-BGPoof-Refinement': refined.applied ? 'grabcut' : 'cloudflare',
+        ...(refined.matting ? { 'X-BGPoof-Matte-Format': 'delta-rgb-v1' } : {}),
         'Cache-Control': 'no-store',
         'X-Content-Type-Options': 'nosniff',
       },

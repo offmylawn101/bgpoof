@@ -355,3 +355,40 @@ test('aborting after inference starts stops waiting without starting another tra
   );
   assert.equal(env.calls.outputs.length, 1);
 });
+
+test('the public response advertises only a recognized private matte protocol', async () => {
+  const mask = new Uint8Array(26);
+  const header = new DataView(mask.buffer);
+  header.setUint32(0, 0x89504e47);
+  header.setUint32(4, 0x0d0a1a0a);
+  header.setUint32(8, 13);
+  header.setUint32(12, 0x49484452);
+  header.setUint32(16, 1024);
+  header.setUint32(20, 768);
+  mask[24] = 8;
+  mask[25] = 6;
+  for (const format of ['delta-rgb-v1', 'unsupported']) {
+    const env = bindings();
+    env.GRABCUT_SECRET = 'test-secret';
+    env.GRABCUT = {
+      async fetch() {
+        return new Response(mask, {
+          headers: {
+            'Content-Type': 'image/png',
+            'X-Bgpoof-Matte-Format': format,
+            'X-Private-Header': 'not-for-the-browser',
+          },
+        });
+      },
+    };
+    const response = await handleRemoval(request(), env);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('x-bgpoof-refinement'), 'grabcut');
+    assert.equal(
+      response.headers.get('x-bgpoof-matte-format'),
+      format === 'delta-rgb-v1' ? format : null,
+    );
+    assert.equal(response.headers.get('x-private-header'), null);
+    assert.deepEqual(new Uint8Array(await response.arrayBuffer()), mask);
+  }
+});

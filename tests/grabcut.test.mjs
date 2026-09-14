@@ -48,7 +48,11 @@ test('refinement follows segmentation with a framed compact source and mask', as
       );
       assert.deepEqual(body.slice(8), baseline);
       return new Response(png(), {
-        headers: { 'Content-Type': 'image/png', 'x-private-header': 'secret' },
+        headers: {
+          'Content-Type': 'image/png',
+          'x-private-header': 'secret',
+          'x-bgpoof-matte-format': 'delta-rgb-v1',
+        },
       });
     }),
     new AbortController().signal,
@@ -56,6 +60,7 @@ test('refinement follows segmentation with a framed compact source and mask', as
   );
   assert.equal(calls, 1);
   assert.equal(refined.applied, true);
+  assert.equal(refined.matting, true);
   assert.deepEqual(new Uint8Array(await refined.response.arrayBuffer()), png());
   assert.equal(refined.response.headers.get('x-private-header'), null);
 });
@@ -71,6 +76,22 @@ test('missing service configuration retains the original streaming response', as
   );
   assert.equal(result.response, original);
   assert.equal(result.applied, false);
+});
+
+test('legacy and unknown private formats do not enable RGB correction', async () => {
+  for (const format of [null, 'unknown-version']) {
+    const headers = { 'Content-Type': 'image/png' };
+    if (format) headers['x-bgpoof-matte-format'] = format;
+    const result = await applyGrabCut(
+      image,
+      response(),
+      env(async () => new Response(png(), { headers })),
+      new AbortController().signal,
+      dimensions,
+    );
+    assert.equal(result.applied, true);
+    assert.equal(result.matting, false);
+  }
 });
 
 test('busy, failed and invalid private responses preserve the existing cutout', async () => {

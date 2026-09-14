@@ -5,3 +5,5 @@
   Cache-Control: no-cache
 /refine-mask.js
   Cache-Control: no-cache
+/edge-colors.js
+  Cache-Control: no-cache

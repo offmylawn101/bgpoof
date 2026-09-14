@@ -17,10 +17,11 @@ export default function About() {
       <p>
         Your original photo stays in your browser. Cloudflare Images identifies
         the subject in the compact copy. Our server then automatically checks
-        for missed foreground areas using GrabCut, and your browser refines the
-        edges and creates the final PNG from your original photo. The download
-        keeps your original pixel dimensions. The compact copy is held in memory
-        only while our server processes it.
+        for missed foreground areas using GrabCut and refines edge transparency.
+        Your browser cleans up remaining background color around the edges and
+        creates the final PNG from your original photo. The download keeps your
+        original pixel dimensions. The compact copy is held in memory only while
+        our server processes it.
       </p>
       <p>
         Working images are held in browser memory while you use the page. You

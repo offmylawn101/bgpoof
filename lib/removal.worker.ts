@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 
 import { refineMask } from './refine-mask.js';
+import { applyEdgeColors } from './edge-colors.js';
 
 const scope = self as unknown as DedicatedWorkerGlobalScope;
 const report = (message: string, value: number | null = null) =>
@@ -63,6 +64,8 @@ scope.onmessage = async ({ data }: MessageEvent<{ bitmap: ImageBitmap }>) => {
       throw new Error(
         'The background remover returned an invalid result. Please try again.',
       );
+    const hasMatting =
+      response.headers.get('X-BGPoof-Matte-Format') === 'delta-rgb-v1';
     mask = await createImageBitmap(await response.blob());
     if (mask.width !== small.width || mask.height !== small.height)
       throw new Error(
@@ -73,7 +76,7 @@ scope.onmessage = async ({ data }: MessageEvent<{ bitmap: ImageBitmap }>) => {
     preview.clearRect(0, 0, small.width, small.height);
     preview.drawImage(mask, 0, 0);
     const refined = preview.getImageData(0, 0, small.width, small.height);
-    refineMask(refined, guide);
+    if (!hasMatting) refineMask(refined, guide);
     preview.putImageData(refined, 0, 0);
     mask.close();
     mask = await createImageBitmap(small);
@@ -82,6 +85,7 @@ scope.onmessage = async ({ data }: MessageEvent<{ bitmap: ImageBitmap }>) => {
     // Use original pixels/alpha rather than the inference JPEG's white backing.
     preview.clearRect(0, 0, small.width, small.height);
     preview.drawImage(original, 0, 0, small.width, small.height);
+    if (hasMatting) applyEdgeColors(preview, refined);
     preview.globalCompositeOperation = 'destination-in';
     preview.drawImage(mask, 0, 0);
     scope.postMessage({
@@ -95,6 +99,7 @@ scope.onmessage = async ({ data }: MessageEvent<{ bitmap: ImageBitmap }>) => {
         'Your browser couldn’t save this photo. Try a smaller photo.',
       );
     context.drawImage(original, 0, 0);
+    if (hasMatting) applyEdgeColors(context, refined);
     context.globalCompositeOperation = 'destination-in';
     context.imageSmoothingQuality = 'high';
     context.drawImage(mask, 0, 0, width, height);

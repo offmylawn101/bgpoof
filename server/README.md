@@ -2,11 +2,25 @@
 
 This loopback service runs one 512-pixel, one-iteration GrabCut pass after
 Cloudflare background removal. It uses Cloudflare's confident foreground as
-fixed seeds and dark-alpha border pixels as background seeds. Other pixels
-start as probable foreground. The result keeps the maximum of the recovered
-alpha and Cloudflare's original working-resolution alpha. It can recover
-missing foreground, but can also restore unwanted background; it is a
-foreground recovery heuristic, not another semantic model.
+fixed seeds and low-alpha pixels in a four-pixel border as background seeds.
+Other pixels start as probable foreground. Recovery adds missing foreground
+while preserving Cloudflare's soft alpha (17–238) at outer boundaries and
+spatially supported translucent interiors. Thin uncertain seams inside a
+recovered object stay repaired; a coarse binary mask does not make the
+supported hair or translucent areas opaque.
+
+At the original working resolution, a narrow automatic trimap then estimates
+edge opacity and removes background color contamination. Eroded confident
+foreground/background supply nearby local colors. The observed pixel is
+projected onto that color mixture to estimate alpha; weak contrast or a poor
+reconstruction fit leaves the existing matte unchanged. A regularized
+foreground-color estimate avoids amplifying noise at low alpha. Both kinds
+of evidence must be within 12 pixels; opaque cores, unsupported boundaries,
+and interior translucency remain untouched. Work is capped at 250,000
+candidate edge pixels; no disconnected foreground components are pruned.
+
+These passes can recover missing foreground and improve soft edges, but can
+also restore unwanted background. They do not add another semantic model.
 
 Install `server/requirements.txt` in an isolated Python environment. Run:
 
@@ -26,9 +40,15 @@ The token must contain at least 32 characters. The service binds only
   either side and 2.4 million pixels. The cutout must be 8-bit RGBA PNG.
 
 Successful responses are `image/png`, with the same dimensions and refined
-alpha. **RGB is constant white: callers must apply the alpha to their original
-photo.** `X-Bgpoof-Refinement` is `recovered` or `unchanged`; `Server-Timing`
-reports native processing and encoding time. The caller should fall back to
+alpha, and `X-Bgpoof-Matte-Format: delta-rgb-v1`. **RGB stores signed color
+corrections, not a photograph:** subtract 128 from each channel to obtain the
+foreground-color correction, bounded to ±64. Neutral RGB is 128. Corrections
+are zero outside supported soft boundaries (alpha 17–238). Callers must apply
+the alpha to their original photo and may add the correction to its original
+color channels only when this version header is recognized. Preserve the
+original source alpha. `X-Bgpoof-Refinement` reports GrabCut's `recovered` or
+`unchanged` status; `Server-Timing` reports all native processing and encoding
+time. The caller should fall back to
 Cloudflare's result on any service error. Busy returns 503; timeout returns
 504; invalid images return 400.
 
