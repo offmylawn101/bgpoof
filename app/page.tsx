@@ -278,9 +278,6 @@ export default function Home() {
         <span className="header-note">
           <span className="status-dot" /> Free. No account needed.
         </span>
-        <a href="/source/bgpoof-source.tar.gz" className="source-link">
-          Open source <ArrowUpRight size={15} />
-        </a>
       </header>
 
       <main>
@@ -397,13 +394,8 @@ export default function Home() {
               <div className="result-preview">
                 <Comparison
                   original={photo.original}
-                  result={photo.preview ?? photo.result}
+                  result={photo.result ?? photo.preview}
                   value={compare}
-                  onChange={(value) => {
-                    cancelAnimationFrame(animationFrame.current);
-                    setRevealing(false);
-                    setCompare(value);
-                  }}
                   label="Your photo before and after"
                   revealing={revealing}
                   processing={busy && !photo.preview}
@@ -513,8 +505,8 @@ export default function Home() {
             </div>
             {!busy && photo.result && (
               <p className="result-hint">
-                Drag the slider to compare. Paste or drop another photo to keep
-                going.
+                Right-click the image to copy it. Paste or drop another photo to
+                keep going.
               </p>
             )}
           </section>
@@ -570,7 +562,7 @@ function Comparison({
   original: string;
   result?: string;
   value: number;
-  onChange: (value: number) => void;
+  onChange?: (value: number) => void;
   label: string;
   demo?: boolean;
   revealing?: boolean;
@@ -584,7 +576,7 @@ function Comparison({
       style={
         {
           '--split': `${value}%`,
-          '--photo-ratio': `${width} / ${height}`,
+          '--photo-ratio': width / height,
         } as React.CSSProperties
       }
     >
@@ -600,15 +592,18 @@ function Comparison({
           draggable={false}
         />
       )}
-      <img
-        src={original}
-        alt={demo ? 'Original example photo' : 'Your original photo'}
-        className="comparison-image original-image"
-        style={{
-          clipPath: result ? `inset(0 ${100 - value}% 0 0)` : undefined,
-        }}
-        draggable={false}
-      />
+      {(!result || demo || value > 0) && (
+        <img
+          src={original}
+          alt={demo ? 'Original example photo' : 'Your original photo'}
+          className="comparison-image original-image"
+          style={{
+            clipPath: result ? `inset(0 ${100 - value}% 0 0)` : undefined,
+            pointerEvents: result && !demo && value < 100 ? 'none' : undefined,
+          }}
+          draggable={false}
+        />
+      )}
       {result && (
         <>
           <span
@@ -623,23 +618,29 @@ function Comparison({
           >
             Background removed
           </span>
-          <div className="comparison-line" aria-hidden="true">
-            <span className="comparison-handle">
-              <ChevronLeft size={15} />
-              <ChevronRight size={15} />
-            </span>
-          </div>
-          <Slider
-            className="comparison-slider"
-            min={0}
-            max={100}
-            step={1}
-            value={[value]}
-            onValueChange={(next) =>
-              onChange(Array.isArray(next) ? next[0] : next)
-            }
-            aria-label={label}
-          />
+          {(demo || revealing) && (
+            <div className="comparison-line" aria-hidden="true">
+              {demo && (
+                <span className="comparison-handle">
+                  <ChevronLeft size={15} />
+                  <ChevronRight size={15} />
+                </span>
+              )}
+            </div>
+          )}
+          {demo && (
+            <Slider
+              className="comparison-slider"
+              min={0}
+              max={100}
+              step={1}
+              value={[value]}
+              onValueChange={(next) =>
+                onChange?.(Array.isArray(next) ? next[0] : next)
+              }
+              aria-label={label}
+            />
+          )}
         </>
       )}
       {processing && <div className="scan-line" aria-hidden="true" />}

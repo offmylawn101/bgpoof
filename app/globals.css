@@ -114,12 +114,6 @@ button {
   background: #28a26a;
   border-radius: 100%;
 }
-.source-link {
-  font-size: 14px;
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
 main {
   width: 100%;
   flex: 1;
@@ -449,8 +443,10 @@ kbd {
   min-width: 0;
 }
 .photo-comparison {
-  height: min(57vh, 560px);
-  min-height: 270px;
+  --preview-max-height: min(57svh, 560px);
+  aspect-ratio: var(--photo-ratio);
+  width: min(100%, calc(var(--preview-max-height) * var(--photo-ratio)));
+  margin-inline: auto;
   border: 1px solid #e8ebf1;
 }
 .result-actions {
@@ -644,9 +640,6 @@ kbd {
     padding: 0 24px;
     height: 80px;
   }
-  .source-link {
-    display: none;
-  }
   .home-workspace {
     gap: 35px;
     margin-top: 42px;
@@ -775,9 +768,7 @@ kbd {
     width: 100%;
   }
   .photo-comparison {
-    height: 380px;
-    min-height: 220px;
-    max-height: 49svh;
+    --preview-max-height: 49svh;
   }
   .result-actions {
     width: 100%;

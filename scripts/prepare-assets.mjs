@@ -1,6 +1,5 @@
 import ts from 'typescript';
-import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
-import { execFileSync } from 'node:child_process';
+import { readFile, writeFile, readdir, rm } from 'node:fs/promises';
 // Compile this self-contained Worker separately so dev transforms cannot inject DOM-only code.
 const worker = await readFile('lib/removal.worker.ts', 'utf8');
 await writeFile(
@@ -12,7 +11,8 @@ await writeFile(
     },
   }).outputText,
 );
-await mkdir('public/source', { recursive: true });
+// Remove the archive left by older builds; application source is not published.
+await rm('public/source/bgpoof-source.tar.gz', { force: true });
 const notices = [];
 for (const name of [
   'react',
@@ -37,34 +37,4 @@ for (const name of [
       );
 }
 await writeFile('public/licenses/dependencies.txt', notices.join('\n'));
-const files = [
-  'app',
-  'lib',
-  'edge',
-  'components',
-  'hooks',
-  'scripts',
-  'tests',
-  'public/icon.svg',
-  'public/example.jpg',
-  'public/example-cutout.png',
-  'public/_headers',
-  'public/licenses',
-  'package.json',
-  'package-lock.json',
-  'tsconfig.json',
-  'vite.config.ts',
-  'wrangler.production.jsonc',
-  'next.config.ts',
-  'components.json',
-  'playwright.config.ts',
-  '.oxlintrc.json',
-  '.oxfmtrc.json',
-  '.gitignore',
-  'README.md',
-  'LICENSE',
-];
-execFileSync('tar', ['-czf', 'public/source/bgpoof-source.tar.gz', ...files]);
-console.log(
-  'Prepared photo Worker, dependency notices and downloadable source.',
-);
+console.log('Prepared photo Worker and dependency notices.');

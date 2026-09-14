@@ -1,10 +1,10 @@
 # BG Poof
 
-Photo background removal without accounts, watermarks, or paid download tiers. Upload, drop, or paste a JPG, PNG, or WebP to start processing. An 800 ms reveal shows the transparent PNG; comparison works with a keyboard or touch, and reduced-motion users see the completed result immediately.
+Photo background removal without accounts, watermarks, or paid download tiers. Upload, drop, or paste a JPG, PNG, or WebP to start processing. An 800 ms reveal shows the cutout, and reduced-motion users see it immediately. The result frame follows the uploaded photo’s aspect ratio. Right-click the completed image to copy its full-resolution PNG, or use Show original to compare. The homepage example retains its keyboard and touch slider.
 
 ## Processing and privacy
 
-The original photo stays in the browser. A browser Worker makes a JPEG copy at quality 0.94, with a maximum long side of 1,024 pixels, and posts it to `/api/remove-background`. That route uses [Cloudflare Images foreground segmentation](https://developers.cloudflare.com/images/optimization/features/#segment) through the `IMAGES` binding. The browser applies the returned transparency mask to the original pixels and encodes a PNG at the source dimensions, preserving existing transparency. A display-sized preview begins the reveal while the full-resolution download finishes encoding. BG Poof does not store uploaded copies or results.
+The original photo stays in the browser. A browser Worker makes a JPEG copy at quality 0.94, with a maximum long side of 1,024 pixels, and posts it to `/api/remove-background`. That route uses [Cloudflare Images foreground segmentation](https://developers.cloudflare.com/images/optimization/features/#segment) through the `IMAGES` binding. The browser applies the returned transparency mask to the original pixels and encodes a PNG at the source dimensions, preserving existing transparency. A display-sized preview begins the reveal while the full-resolution download finishes encoding, then the displayed image switches to the full-resolution PNG for native copying. BG Poof does not store uploaded copies or results.
 
 Cloudflare hosts the site, processes the compact photo copy, and collects [cookie-free page-performance metrics](https://developers.cloudflare.com/web-analytics/about/). Those metrics do not include photo contents. Working images remain in browser memory until the user replaces them, clears the result, or closes the page.
 
@@ -21,7 +21,7 @@ npm run assets
 npm run dev -- --host 0.0.0.0 --port 3090
 ```
 
-`npm run assets` prepares browser assets, dependency notices, and the downloadable source archive. The dev and build commands also run it automatically. For a reproducible installation from the lockfile, use `npm ci`.
+`npm run assets` prepares browser assets and dependency notices. The dev and build commands also run it automatically. Application source archives are not published. For a reproducible installation from the lockfile, use `npm ci`.
 
 ```sh
 npm run check
@@ -67,6 +67,6 @@ The source photo goes through the normal Cloudflare processing flow; the referen
 
 ## Licenses and credits
 
-Application code: MIT, including the downloadable source archive. React, Lucide, Base UI, and other bundled dependencies retain their own licenses; notices are generated in `public/licenses/dependencies.txt`. Background segmentation is provided by Cloudflare Images through its Workers binding.
+Application code: MIT. React, Lucide, Base UI, and other bundled dependencies retain their own licenses; notices are generated in `public/licenses/dependencies.txt`. Background segmentation is provided by Cloudflare Images through its Workers binding.
 
 The example photo is by [Helena Lopes on Unsplash](https://unsplash.com/fr/photos/golden-retriever-assis-sur-le-sol-au-coucher-du-soleil-w-dZelX6svs), photo `w-dZelX6svs`, under the [Unsplash License](https://unsplash.com/license). Its cutout uses Cloudflare Images and the app's browser compositing. See `/about` and `public/licenses/` for credits.

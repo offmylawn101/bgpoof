@@ -36,11 +36,7 @@ export default function About() {
         load affect the wait. Fine hair, glass, shadows, and busy backgrounds
         can need additional editing; results will differ from remove.bg.
       </p>
-      <h2>Open source & credits</h2>
-      <p>
-        <a href="/source/bgpoof-source.tar.gz">Download BG Poof’s source</a>.
-        The application code is available under the MIT license.
-      </p>
+      <h2>Credits</h2>
       <p>
         Background removal uses{' '}
         <a href="https://developers.cloudflare.com/images/optimization/features/#segment">
@@ -54,8 +50,8 @@ export default function About() {
       </p>
       <p>
         The interface uses React, Lucide, and Base UI;{' '}
-        <a href="/licenses/dependencies.txt">dependency notices</a> are included
-        in the source package.
+        <a href="/licenses/dependencies.txt">dependency notices</a> are
+        available here.
       </p>
       <p>
         Example photo by{' '}

@@ -56,7 +56,107 @@ async function pngStats(page: import('@playwright/test').Page) {
   }, url);
 }
 
-test('real API upload, wipe, comparison, PNG, drop, clipboard, and bounded photo transfer', async ({
+type ImageHit = { tag: string | null; src: string | null };
+type ContextMenuHit = ImageHit & { defaultPrevented: boolean };
+
+async function resultImage(
+  page: import('@playwright/test').Page,
+  width: number,
+  height: number,
+  checkContextMenu = false,
+) {
+  const frame = page.locator('.photo-comparison');
+  const image = page.getByRole('img', {
+    name: 'Your photo with a transparent background',
+  });
+  const downloadUrl = await page
+    .getByRole('link', { name: 'Download PNG' })
+    .getAttribute('href');
+  await expect(image).toHaveAttribute('src', downloadUrl!);
+  await expect(image).toHaveJSProperty('naturalWidth', width);
+  await expect(image).toHaveJSProperty('naturalHeight', height);
+  await expect(frame.getByRole('slider')).toHaveCount(0);
+  await frame.scrollIntoViewIfNeeded();
+  const box = (await frame.boundingBox())!;
+  expect(box.width).toBeGreaterThan(0);
+  expect(box.height).toBeGreaterThan(0);
+  expect(
+    Math.abs(box.width - (box.height * width) / height),
+    'The checkerboard frame must follow the uploaded photo aspect ratio',
+  ).toBeLessThanOrEqual(2);
+  const points = [
+    { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+    { x: box.x + 24, y: box.y + 24 },
+  ];
+  const hitTargets = await page.evaluate(
+    (points) =>
+      points.map(({ x, y }) => {
+        const target = document.elementFromPoint(x, y);
+        return {
+          tag: target?.tagName || null,
+          src: target instanceof HTMLImageElement ? target.currentSrc : null,
+        };
+      }),
+    points,
+  );
+  const expectedHits = points.map(() => ({ tag: 'IMG', src: downloadUrl }));
+  expect(
+    hitTargets,
+    'The result image must receive input at its center and near its corner',
+  ).toEqual(expectedHits);
+
+  let contextMenus: ContextMenuHit[] = [];
+  if (checkContextMenu) {
+    await page.evaluate(() => {
+      const state = window as Window & {
+        resultContextMenus?: ContextMenuHit[];
+      };
+      state.resultContextMenus = [];
+      const observe = (event: MouseEvent) => {
+        queueMicrotask(() => {
+          const target = event.target;
+          state.resultContextMenus!.push({
+            tag: target instanceof Element ? target.tagName : null,
+            src: target instanceof HTMLImageElement ? target.currentSrc : null,
+            defaultPrevented: event.defaultPrevented,
+          });
+          if (state.resultContextMenus!.length === 2) {
+            document.removeEventListener('contextmenu', observe, true);
+          }
+        });
+      };
+      document.addEventListener('contextmenu', observe, true);
+    });
+    for (const { x, y } of points) {
+      await page.mouse.click(x, y, { button: 'right' });
+      await page.keyboard.press('Escape');
+    }
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (window as Window & { resultContextMenus?: ContextMenuHit[] })
+              .resultContextMenus?.length,
+        ),
+      )
+      .toBe(2);
+    contextMenus = await page.evaluate(
+      () =>
+        (window as Window & { resultContextMenus?: ContextMenuHit[] })
+          .resultContextMenus!,
+    );
+    expect(contextMenus).toEqual(
+      expectedHits.map((hit) => ({ ...hit, defaultPrevented: false })),
+    );
+  }
+  return {
+    frame: { width: box.width, height: box.height },
+    hitTargets,
+    contextMenus,
+  };
+}
+
+test('real API upload, wipe, copyable PNG, drop, clipboard, and bounded photo transfer', async ({
   page,
   context,
 }, testInfo) => {
@@ -148,6 +248,14 @@ test('real API upload, wipe, comparison, PNG, drop, clipboard, and bounded photo
     path: testInfo.outputPath('desktop-home.png'),
     fullPage: true,
   });
+  const demoSlider = page.locator('.demo-comparison').getByRole('slider');
+  await demoSlider.focus();
+  await page.keyboard.press('End');
+  await expect(demoSlider).toHaveAttribute('aria-valuenow', '100');
+  await page.keyboard.press('Home');
+  await expect(demoSlider).toHaveAttribute('aria-valuenow', '0');
+  await page.keyboard.press('ArrowRight');
+  await expect(demoSlider).toHaveAttribute('aria-valuenow', '1');
   await page.evaluate(() => {
     const timings: number[] = [];
     let last = performance.now();
@@ -178,18 +286,29 @@ test('real API upload, wipe, comparison, PNG, drop, clipboard, and bounded photo
   expect(stats.opaque).toBeLessThan(0.6);
   expect(stats.soft).toBeGreaterThan(500);
   expect(stats.center).toBeGreaterThan(245);
-  const slider = page.getByRole('slider');
-  await expect(slider).toHaveAttribute('aria-valuenow', '0');
-  await slider.focus();
-  await page.keyboard.press('End');
-  await expect(slider).toHaveAttribute('aria-valuenow', '100');
-  await page.keyboard.press('Home');
-  await page.keyboard.press('ArrowRight');
-  await expect(slider).toHaveAttribute('aria-valuenow', '1');
+  const landscapeImage = await resultImage(page, 1600, 1200, true);
   await page.getByRole('button', { name: 'Show original' }).click();
-  await expect(slider).toHaveAttribute('aria-valuenow', '100');
+  await expect(page.getByRole('button', { name: 'Show cutout' })).toBeVisible();
+  const originalUrl = await page
+    .getByRole('img', { name: 'Your original photo' })
+    .getAttribute('src');
+  await expect
+    .poll(() =>
+      page.locator('.photo-comparison').evaluate((frame) => {
+        const box = frame.getBoundingClientRect();
+        const target = document.elementFromPoint(
+          box.x + box.width / 2,
+          box.y + box.height / 2,
+        );
+        return target instanceof HTMLImageElement ? target.currentSrc : null;
+      }),
+    )
+    .toBe(originalUrl);
   await page.getByRole('button', { name: 'Show cutout' }).click();
-  await expect(slider).toHaveAttribute('aria-valuenow', '0');
+  await expect(
+    page.getByRole('button', { name: 'Show original' }),
+  ).toBeVisible();
+  await resultImage(page, 1600, 1200);
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('link', { name: 'Download PNG' }).click(),
@@ -250,6 +369,7 @@ test('real API upload, wipe, comparison, PNG, drop, clipboard, and bounded photo
   });
   expect(personStats.transparent).toBeGreaterThan(0.1);
   expect(personStats.opaque).toBeGreaterThan(0.1);
+  const portraitImage = await resultImage(page, 960, 1440, true);
   const [personDownload] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('link', { name: 'Download PNG' }).click(),
@@ -289,6 +409,8 @@ test('real API upload, wipe, comparison, PNG, drop, clipboard, and bounded photo
         secondTiming,
         stats,
         personStats,
+        landscapeImage,
+        portraitImage,
         pasted,
         worstMainThreadIntervalMs: Math.max(...timings),
         unexpectedWriteRequests: requests,
@@ -426,7 +548,10 @@ test('mobile layout, touch comparison, and reduced motion', async ({
     .toBeGreaterThan(70);
   await page.getByLabel('Upload photo', { exact: true }).setInputFiles(fixture);
   await finished(page);
-  await expect(page.getByRole('slider')).toHaveAttribute('aria-valuenow', '0');
+  await resultImage(page, 1600, 1200);
+  await expect(
+    page.getByRole('button', { name: 'Show original' }),
+  ).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
