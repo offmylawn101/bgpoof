@@ -29,6 +29,7 @@ gtag('js', new Date());
 gtag('config', '${analyticsId}');`,
             }}
           />
+          <script defer src="https://panel.offmylawn.com/a.js" data-app="bgpoof" />
         </head>
       ) : null}
       <body>{children}</body>
