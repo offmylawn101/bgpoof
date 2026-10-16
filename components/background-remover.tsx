@@ -29,6 +29,17 @@ import { removePhotoBackground, type RemovalProgress } from '@/lib/removal';
 import { registerDownloadTool } from '@/lib/webmcp';
 import { ProcessingStats } from '@/components/processing-stats';
 
+// OpenPanel (panel.offmylawn.com/a.js). Call op directly: compilers turn `op?.()` into
+// `op.call()`, which the SDK's Proxy doesn't support.
+function track(name: string, props?: Record<string, string | number>) {
+  const op = (window as { op?: (...args: unknown[]) => void }).op;
+  try {
+    if (typeof op === 'function') op('track', name, props);
+  } catch {
+    // Analytics must never break the remover.
+  }
+}
+
 type Photo = {
   original: string;
   preview?: string;
@@ -105,6 +116,7 @@ export default function BackgroundRemover({
         setError('This photo is too large. Choose one smaller than 25 MB.');
         return;
       }
+      track('removal_start', { type: file.type });
       const id = ++operation.current;
       controller.current?.abort();
       const abort = new AbortController();
@@ -154,9 +166,11 @@ export default function BackgroundRemover({
         const result = URL.createObjectURL(blob);
         replacePhoto({ ...current, result });
         setBusy(false);
+        track('removal_complete', { megapixels: Math.round((width * height) / 1e5) / 10 });
         resultHeading.current?.focus();
       } catch (cause) {
         if (id !== operation.current || abort.signal.aborted) return;
+        track('removal_error');
         setBusy(false);
         setError(
           cause instanceof Error
@@ -254,6 +268,7 @@ export default function BackgroundRemover({
   );
 
   async function tryExample() {
+    track('example_try');
     try {
       const response = await fetch('/example.jpg');
       if (!response.ok)
@@ -472,6 +487,7 @@ export default function BackgroundRemover({
                       className="primary-button download-button"
                       href={photo.result}
                       download={downloadName}
+                      onClick={() => track('download')}
                     >
                       <ArrowDown size={20} /> Download PNG
                     </a>
