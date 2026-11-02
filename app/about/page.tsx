@@ -1,4 +1,5 @@
 import {
+  adUrl,
   analyticsId,
   panelApp,
   turnstileSiteKey,
@@ -44,6 +45,18 @@ export default function About() {
           can replace them, clear the result, or close the page when you are
           done.
         </p>
+        {adUrl && (
+          <>
+            <h2>Ads</h2>
+            <p>
+              Each image opens one ad from AdMaven in a new tab before removal
+              starts, which helps pay for processing. The ad is a separate
+              website with its own privacy practices, and we don’t choose what
+              it shows. No ad code runs on BG Poof, and the ad tab doesn’t
+              receive your photo.
+            </p>
+          </>
+        )}
         <h2>Analytics</h2>
         <p>
           The homepage shows a shared count of successfully processed images. It
@@ -70,8 +83,9 @@ export default function About() {
             We also use <a href="https://openpanel.dev/">OpenPanel</a>, hosted
             at panel.offmylawn.com, to measure product use. It stores a random
             ID in your browser and records page views, outbound link clicks, and
-            events such as a removal starting, finishing, or failing and a PNG
-            being downloaded, along with the image type and size in megapixels.
+            events such as an ad opening, a removal starting, finishing, or
+            failing, and a PNG being downloaded, along with the image type and
+            size in megapixels.
           </p>
         )}
         <p>Your photos and file names are not included in analytics.</p>

@@ -21,6 +21,8 @@ jobs:
       - run: npm run test:api
       - run: npm run test:mask
       - run: npm run build
+        env:
+          VITE_BGPOOF_AD_URL: https://example.com/ad
       - run: npx playwright install --with-deps chrome
       - run: npm run test:seo
 

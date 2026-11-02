@@ -27,6 +27,7 @@ import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
 import type { RemoverCopy } from '@/lib/copy';
 import { removePhotoBackground, type RemovalProgress } from '@/lib/removal';
+import { adUrl } from '@/lib/site-settings';
 import { prepareVerification, takeVerification } from '@/lib/turnstile';
 import { registerDownloadTool } from '@/lib/webmcp';
 import { ProcessingStats } from '@/components/processing-stats';
@@ -76,6 +77,10 @@ export default function BackgroundRemover({
     serverReady,
   );
   const [photo, setPhoto] = useState<Photo | null>(null);
+  const [waiting, setWaiting] = useState<{
+    file: File;
+    adOpened: boolean;
+  } | null>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<RemovalProgress>({
     message: 'Preparing your photo…',
@@ -110,6 +115,7 @@ export default function BackgroundRemover({
     controller.current?.abort();
     cancelAnimationFrame(animationFrame.current);
     replacePhoto(null);
+    setWaiting(null);
     setBusy(false);
     setError('');
     setRevealing(false);
@@ -117,7 +123,7 @@ export default function BackgroundRemover({
   }, [replacePhoto]);
 
   const start = useCallback(
-    async (file: File) => {
+    async (file: File, adSeen = !adUrl) => {
       if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
         setError(say('Choose a JPG, PNG, or WebP photo.'));
         return;
@@ -128,8 +134,11 @@ export default function BackgroundRemover({
         );
         return;
       }
-      track('removal_start', { type: file.type });
-      const verification = takeVerification();
+      if (adSeen) {
+        track('removal_start', { type: file.type });
+        setWaiting(null);
+      }
+      const verification = adSeen ? takeVerification() : undefined;
       let refinement = 'unknown';
       const id = ++operation.current;
       controller.current?.abort();
@@ -137,7 +146,7 @@ export default function BackgroundRemover({
       controller.current = abort;
       cancelAnimationFrame(animationFrame.current);
       setError('');
-      setBusy(true);
+      setBusy(adSeen);
       setRevealing(false);
       setCompare(100);
       setProgress({ message: 'Preparing your photo…' });
@@ -155,6 +164,10 @@ export default function BackgroundRemover({
         original = URL.createObjectURL(file);
         let current: Photo = { original, name: file.name, width, height };
         replacePhoto(current);
+        if (!adSeen) {
+          setWaiting({ file, adOpened: false });
+          return;
+        }
         const blob = await removePhotoBackground(
           bitmap,
           abort.signal,
@@ -438,9 +451,11 @@ export default function BackgroundRemover({
                     ? photo.preview
                       ? copy.removed
                       : copy.working
-                    : photo.result
-                      ? copy.removed
-                      : copy.tryAgain}
+                    : waiting
+                      ? copy.photoReady
+                      : photo.result
+                        ? copy.removed
+                        : copy.tryAgain}
                 </h1>
               </div>
               <Button
@@ -494,6 +509,34 @@ export default function BackgroundRemover({
                       {copy.cancel}
                     </Button>
                   </div>
+                ) : waiting ? (
+                  <>
+                    <p>{waiting.adOpened ? copy.adDone : copy.adHint}</p>
+                    <Button
+                      className="primary-button download-button"
+                      onClick={() => {
+                        if (waiting.adOpened) {
+                          void start(waiting.file, true);
+                          return;
+                        }
+                        // Unlock even if a blocker stops the tab: the ad must never prevent removal.
+                        window.open(adUrl, '_blank', 'noopener');
+                        track('ad_opened');
+                        setWaiting({ ...waiting, adOpened: true });
+                      }}
+                    >
+                      {waiting.adOpened
+                        ? copy.removeBackground
+                        : copy.removeWithAd}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="secondary-button"
+                      onClick={() => input.current?.click()}
+                    >
+                      {copy.chooseAnother}
+                    </Button>
+                  </>
                 ) : photo.result ? (
                   <>
                     <span className="success-icon">
@@ -550,6 +593,7 @@ export default function BackgroundRemover({
                           new File([blob], photo.name, {
                             type: blob.type || 'image/png',
                           }),
+                          true,
                         );
                       }}
                     >

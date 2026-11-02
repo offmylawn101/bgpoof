@@ -8,7 +8,7 @@ export default function HowToRemoveBackground() {
     <GuidePage
       path="/how-to-remove-background"
       title="How to remove a photo background"
-      intro="Upload a photo to BG Poof, wait for the cutout, then download the transparent PNG. There is no account to create or watermark to remove."
+      intro="Upload a photo to BG Poof, open one ad, wait for the cutout, then download the transparent PNG. There is no account to create or watermark to remove."
     >
       <h2>Choose a file, drop it, or paste it</h2>
       <p>
@@ -27,10 +27,13 @@ export default function HowToRemoveBackground() {
 
       <h2>Wait for the download button</h2>
       <p>
-        Removal starts as soon as you select a supported image. The status text
-        shows the current stage. A cutout preview can appear while the final PNG
-        is still being prepared; wait for <strong>Download PNG</strong> before
-        saving your result.
+        After you select a supported image, choose{' '}
+        <strong>Remove background (1 ad)</strong>. One ad opens in a new tab.
+        Come back to BG Poof and choose <strong>Remove background</strong> to
+        start. Each new image needs its own ad. The status text shows the
+        current stage. A cutout preview can appear while the final PNG is still
+        being prepared; wait for <strong>Download PNG</strong> before saving
+        your result.
       </p>
       <p>
         Keep this tab open until you have saved the file. Your browser creates

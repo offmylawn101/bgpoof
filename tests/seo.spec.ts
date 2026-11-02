@@ -320,6 +320,61 @@ test('translated homepages show the tool and its errors in their language', asyn
   }
 });
 
+test('each image takes one ad before removal, and retrying takes none', async ({
+  page,
+  context,
+}) => {
+  await page.goto('/about');
+  test.skip(
+    !(await page.getByRole('heading', { name: 'Ads' }).count()),
+    'This build has no VITE_BGPOOF_AD_URL.',
+  );
+  await page.addInitScript(() => {
+    const opened: unknown[] = [];
+    (window as unknown as { opened: unknown[] }).opened = opened;
+    window.open = (url) => {
+      opened.push(url);
+      return null;
+    };
+  });
+  await context.route('https://challenges.cloudflare.com/**', (route) =>
+    route.abort(),
+  );
+  let uploads = 0;
+  await context.route('**/api/remove-background', (route) => {
+    uploads += 1;
+    return route.fulfill({ status: 503, json: { error: 'Unavailable.' } });
+  });
+  const ads = () =>
+    page.evaluate(() => (window as unknown as { opened: unknown[] }).opened);
+  const file = page.locator('input[type="file"]');
+  const withAd = page.getByRole('button', { name: 'Remove background (1 ad)' });
+  const remove = page.getByRole('button', {
+    name: 'Remove background',
+    exact: true,
+  });
+
+  await page.goto('/');
+  await file.setInputFiles('public/example.jpg');
+  await withAd.click();
+  await expect(remove).toBeVisible();
+  expect(await ads()).toHaveLength(1);
+  expect(uploads).toBe(0);
+  await remove.click();
+  await expect.poll(() => uploads).toBe(1);
+
+  await page.getByRole('button', { name: 'Retry removal' }).click();
+  await expect.poll(() => uploads).toBe(2);
+  expect(await ads()).toHaveLength(1);
+
+  await file.setInputFiles('public/example.jpg');
+  await expect(withAd).toBeVisible();
+  expect(uploads).toBe(2);
+  await withAd.click();
+  await expect(remove).toBeVisible();
+  expect(await ads()).toHaveLength(2);
+});
+
 test('every homepage can start the photo worker and load analytics scripts', async ({
   page,
   request,

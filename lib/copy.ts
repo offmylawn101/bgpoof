@@ -28,6 +28,12 @@ const removerEn = {
   removed: 'Background removed.',
   working: 'A little disappearing act…',
   tryAgain: 'Let’s try that again.',
+  photoReady: 'Your photo is ready.',
+  removeWithAd: 'Remove background (1 ad)',
+  removeBackground: 'Remove background',
+  adHint:
+    'Opens one ad in a new tab. Then come back and tap Remove background.',
+  adDone: 'Thanks. Now tap Remove background to continue.',
   cancelRemoval: 'Cancel removal',
   clearPhoto: 'Remove this photo',
   photoCompare: 'Your photo before and after',
@@ -103,8 +109,8 @@ export const homeCopy: Record<HomePath, HomeCopy> = {
           text: 'Upload a JPG, PNG, or WebP. You can also drop a file anywhere on this page or paste an image from your clipboard.',
         },
         {
-          title: '2. Check the cutout',
-          text: 'Background removal starts automatically. Once it finishes, use “Show original” to compare the result with your photo.',
+          title: '2. Remove the background',
+          text: 'Select “Remove background (1 ad)”. One ad opens in a new tab; come back and select “Remove background” to start. Once it finishes, use “Show original” to compare the result with your photo.',
         },
         {
           title: '3. Save the PNG',
@@ -116,7 +122,7 @@ export const homeCopy: Record<HomePath, HomeCopy> = {
         {
           question: 'Is background removal really free?',
           answer:
-            'Yes. You can remove a background and download the PNG without creating an account or paying. BG Poof adds no watermark. To keep the service available, removal requests are rate limited; if you reach the limit, wait a minute and try again.',
+            'Yes. You can remove a background and download the PNG without creating an account or paying. Each image opens one ad in a new tab, which helps pay for processing. BG Poof adds no watermark. To keep the service available, removal requests are rate limited; if you reach the limit, wait a minute and try again.',
         },
         {
           question: 'What photos can I upload?',
@@ -188,6 +194,13 @@ export const homeCopy: Record<HomePath, HomeCopy> = {
       removed: 'Background dihapus.',
       working: 'Sebentar, background-nya sedang menghilang…',
       tryAgain: 'Ayo coba lagi.',
+      photoReady: 'Fotomu sudah siap.',
+      removeWithAd: 'Hapus background (1 iklan)',
+      removeBackground: 'Hapus background',
+      adHint:
+        'Membuka satu iklan di tab baru. Setelah itu, kembali ke sini dan ketuk Hapus background.',
+      adDone:
+        'Terima kasih. Sekarang ketuk Hapus background untuk melanjutkan.',
       cancelRemoval: 'Batalkan penghapusan',
       clearPhoto: 'Hapus foto ini',
       photoCompare: 'Fotomu sebelum dan sesudah',
@@ -283,8 +296,8 @@ export const homeCopy: Record<HomePath, HomeCopy> = {
           text: 'Unggah JPG, PNG, atau WebP. Kamu juga bisa meletakkan file di mana saja di halaman ini atau menempelkan gambar dari clipboard.',
         },
         {
-          title: '2. Periksa hasilnya',
-          text: 'Penghapusan background berjalan otomatis. Setelah selesai, pakai “Lihat foto asli” untuk membandingkan hasil dengan fotomu.',
+          title: '2. Hapus background',
+          text: 'Pilih “Hapus background (1 iklan)”. Satu iklan terbuka di tab baru; kembali ke sini dan pilih “Hapus background” untuk memulai. Setelah selesai, pakai “Lihat foto asli” untuk membandingkan hasil dengan fotomu.',
         },
         {
           title: '3. Simpan PNG',
@@ -296,7 +309,7 @@ export const homeCopy: Record<HomePath, HomeCopy> = {
         {
           question: 'Apakah benar-benar gratis?',
           answer:
-            'Ya. Kamu bisa menghapus background dan mengunduh PNG tanpa membuat akun atau membayar. BG Poof tidak menambahkan watermark. Agar layanan tetap tersedia, jumlah permintaan dibatasi; jika mencapai batas, tunggu satu menit lalu coba lagi.',
+            'Ya. Kamu bisa menghapus background dan mengunduh PNG tanpa membuat akun atau membayar. Setiap gambar membuka satu iklan di tab baru, yang membantu membiayai pemrosesan. BG Poof tidak menambahkan watermark. Agar layanan tetap tersedia, jumlah permintaan dibatasi; jika mencapai batas, tunggu satu menit lalu coba lagi.',
         },
         {
           question: 'Foto apa saja yang bisa diunggah?',
@@ -368,6 +381,12 @@ export const homeCopy: Record<HomePath, HomeCopy> = {
       removed: 'Fundo removido.',
       working: 'Fazendo o fundo desaparecer…',
       tryAgain: 'Vamos tentar de novo.',
+      photoReady: 'Sua foto está pronta.',
+      removeWithAd: 'Remover fundo (1 anúncio)',
+      removeBackground: 'Remover fundo',
+      adHint:
+        'Abre um anúncio em uma nova aba. Depois, volte aqui e toque em Remover fundo.',
+      adDone: 'Obrigado. Agora toque em Remover fundo para continuar.',
       cancelRemoval: 'Cancelar remoção',
       clearPhoto: 'Remover esta foto',
       photoCompare: 'Sua foto antes e depois',
@@ -464,8 +483,8 @@ export const homeCopy: Record<HomePath, HomeCopy> = {
           text: 'Envie um JPG, PNG ou WebP. Você também pode soltar um arquivo em qualquer lugar desta página ou colar uma imagem da área de transferência.',
         },
         {
-          title: '2. Confira o recorte',
-          text: 'A remoção do fundo começa automaticamente. Quando terminar, use “Mostrar original” para comparar o resultado com sua foto.',
+          title: '2. Remova o fundo',
+          text: 'Escolha “Remover fundo (1 anúncio)”. Um anúncio abre em uma nova aba; volte aqui e escolha “Remover fundo” para começar. Quando terminar, use “Mostrar original” para comparar o resultado com sua foto.',
         },
         {
           title: '3. Salve o PNG',
@@ -477,7 +496,7 @@ export const homeCopy: Record<HomePath, HomeCopy> = {
         {
           question: 'É grátis mesmo?',
           answer:
-            'Sim. Você pode remover o fundo e baixar o PNG sem criar conta nem pagar. O BG Poof não adiciona marca d’água. Para manter o serviço disponível, os pedidos têm limite de frequência; se atingir o limite, aguarde um minuto e tente novamente.',
+            'Sim. Você pode remover o fundo e baixar o PNG sem criar conta nem pagar. Cada imagem abre um anúncio em uma nova aba, o que ajuda a pagar o processamento. O BG Poof não adiciona marca d’água. Para manter o serviço disponível, os pedidos têm limite de frequência; se atingir o limite, aguarde um minuto e tente novamente.',
         },
         {
           question: 'Quais fotos posso enviar?',
@@ -550,6 +569,12 @@ export const homeCopy: Record<HomePath, HomeCopy> = {
       removed: 'Fondo eliminado.',
       working: 'Haciendo desaparecer el fondo…',
       tryAgain: 'Intentémoslo de nuevo.',
+      photoReady: 'Tu foto está lista.',
+      removeWithAd: 'Quitar fondo (1 anuncio)',
+      removeBackground: 'Quitar fondo',
+      adHint:
+        'Abre un anuncio en una pestaña nueva. Después, vuelve aquí y toca Quitar fondo.',
+      adDone: 'Gracias. Ahora toca Quitar fondo para continuar.',
       cancelRemoval: 'Cancelar eliminación',
       clearPhoto: 'Quitar esta foto',
       photoCompare: 'Tu foto antes y después',
@@ -645,8 +670,8 @@ export const homeCopy: Record<HomePath, HomeCopy> = {
           text: 'Sube un JPG, PNG o WebP. También puedes soltar un archivo en cualquier lugar de esta página o pegar una imagen desde el portapapeles.',
         },
         {
-          title: '2. Revisa el recorte',
-          text: 'El fondo se elimina automáticamente. Cuando termine, usa “Ver original” para comparar el resultado con tu foto.',
+          title: '2. Quita el fondo',
+          text: 'Elige “Quitar fondo (1 anuncio)”. Se abre un anuncio en una pestaña nueva; vuelve aquí y elige “Quitar fondo” para empezar. Cuando termine, usa “Ver original” para comparar el resultado con tu foto.',
         },
         {
           title: '3. Guarda el PNG',
@@ -658,7 +683,7 @@ export const homeCopy: Record<HomePath, HomeCopy> = {
         {
           question: '¿De verdad es gratis?',
           answer:
-            'Sí. Puedes quitar el fondo y descargar el PNG sin crear una cuenta ni pagar. BG Poof no añade marca de agua. Para mantener el servicio disponible, las solicitudes tienen un límite; si lo alcanzas, espera un minuto e inténtalo de nuevo.',
+            'Sí. Puedes quitar el fondo y descargar el PNG sin crear una cuenta ni pagar. Cada imagen abre un anuncio en una pestaña nueva, lo que ayuda a pagar el procesamiento. BG Poof no añade marca de agua. Para mantener el servicio disponible, las solicitudes tienen un límite; si lo alcanzas, espera un minuto e inténtalo de nuevo.',
         },
         {
           question: '¿Qué fotos puedo subir?',
