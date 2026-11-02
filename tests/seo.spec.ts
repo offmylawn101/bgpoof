@@ -320,6 +320,36 @@ test('translated homepages show the tool and its errors in their language', asyn
   }
 });
 
+test('every homepage can start the photo worker and load analytics scripts', async ({
+  page,
+  request,
+}) => {
+  // Cross-origin isolation headers would block both, as they once did off the root path.
+  for (const path of Object.keys(homeLanguages)) {
+    const response = await request.get(path);
+    expect(
+      response.headers()['cross-origin-embedder-policy'],
+      path,
+    ).toBeUndefined();
+    await page.goto(path);
+    const started = await page.evaluate(
+      () =>
+        new Promise<string>((resolve) => {
+          const worker = new Worker('/removal.worker.mjs', { type: 'module' });
+          const timer = setTimeout(() => {
+            worker.terminate();
+            resolve('started');
+          }, 1500);
+          worker.onerror = () => {
+            clearTimeout(timer);
+            resolve('failed');
+          };
+        }),
+    );
+    expect(started, path).toBe('started');
+  }
+});
+
 test('the mobile uploader stays in the first screen and every page fits the viewport', async ({
   page,
 }, testInfo) => {
