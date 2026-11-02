@@ -8,6 +8,8 @@ const UNAVAILABLE =
   'Background removal is temporarily unavailable. Please try again shortly.';
 const BAD_IMAGE =
   'This image could not be read. Try another JPEG, PNG, or WebP image.';
+const NOT_VERIFIED =
+  'We couldn’t verify this browser. Refresh the page and try again.';
 
 class RequestError extends Error {
   constructor(status, message, headers = {}) {
@@ -36,6 +38,37 @@ async function withAbort(operation, signal) {
     return await Promise.race([pending, aborted]);
   } finally {
     signal.removeEventListener('abort', onAbort);
+  }
+}
+
+// Blocks scripted spending, but a Turnstile outage must not take removal down with it.
+async function isVerified(request, env, ip) {
+  if (!env.TURNSTILE_SECRET) return true;
+  const token = request.headers.get('x-bgpoof-verification');
+  if (!token || token.length > 2048) return false;
+  try {
+    const response = await fetch(
+      'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          secret: env.TURNSTILE_SECRET,
+          response: token,
+          remoteip: ip,
+        }),
+        signal: AbortSignal.timeout(3000),
+      },
+    );
+    if (!response.ok) throw new Error('Turnstile unavailable');
+    const result = await response.json();
+    if (result.success === true) return true;
+    const codes = result['error-codes'] ?? [];
+    console.warn('turnstile_rejected', { codes });
+    return codes.includes('internal-error');
+  } catch {
+    console.warn('turnstile_unavailable');
+    return true;
   }
 }
 
@@ -82,6 +115,8 @@ function errorResponse(error, stage) {
     const code = Number(error?.code);
     const status = Number(error?.status);
     if (code === 9422 || code === 9432) {
+      // The account's Images allowance: every removal fails until it is raised.
+      console.error('background_removal_quota_exceeded', { stage, code });
       error = new RequestError(503, UNAVAILABLE, { 'Retry-After': '60' });
     } else if (code === 429 || status === 429) {
       error = new RequestError(
@@ -180,7 +215,11 @@ export async function handleRemoval(request, env) {
     }
 
     stage = 'upload';
+    // Runs during the upload so verification adds no wait of its own. Never rejects.
+    const verified = isVerified(request, env, ip);
     const image = await readImage(request, type);
+    checkAbort(request.signal);
+    if (!(await verified)) throw new RequestError(403, NOT_VERIFIED);
     checkAbort(request.signal);
     stage = 'info';
     const info = await withAbort(

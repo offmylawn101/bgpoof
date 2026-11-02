@@ -11,11 +11,15 @@ FSA/OWI Collection, **LC-DIG-fsa-8b29516**.
 - [FSA/OWI black-and-white photograph rights statement](https://www.loc.gov/rr/print/res/071_fsab.html)
 
 The Library of Congress identifies this federal photograph collection as public
-domain and explicitly reports no known restrictions on use of Lange's *Migrant
-Mother* images. This photograph is a public-domain test asset, separate from the
+domain and explicitly reports no known restrictions on use of Lange's _Migrant
+Mother_ images. This photograph is a public-domain test asset, separate from the
 repository's MIT-licensed source code. Its inclusion does not imply endorsement
 by the Library of Congress or the people pictured.
 
 The fixture is the Library's unmodified 821 × 1024 JPEG (361,010 bytes), used only
 for automated upload, portrait framing, transparent PNG, and copy/download tests.
 It is not included in the hosted site's public assets.
+
+## Sample results on the alternative page
+
+`public/samples/` holds resized copies of four CC0 photos from Wikimedia Commons and their unedited BG Poof output, processed on the live site on November 2, 2026. Sources are linked on `/remove-bg-alternative`.

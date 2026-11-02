@@ -398,3 +398,79 @@ void test('the public response advertises only a recognized private matte protoc
     assert.deepEqual(new Uint8Array(await response.arrayBuffer()), mask);
   }
 });
+
+void test('an exhausted Images allowance is logged, because every removal fails until it is raised', async (t) => {
+  const errors = t.mock.method(console, 'error', () => {});
+  const response = await handleRemoval(
+    request(),
+    bindings({ outputError: { code: 9422 } }),
+  );
+  assert.equal(response.status, 503);
+  assert.deepEqual(errors.mock.calls[0].arguments, [
+    'background_removal_quota_exceeded',
+    { stage: 'segment', code: 9422 },
+  ]);
+});
+
+void test('Turnstile blocks unverified uploads before Images is called', async (t) => {
+  const verify = t.mock.method(globalThis, 'fetch', async (_url, options) =>
+    Response.json(
+      JSON.parse(options.body).response === 'good'
+        ? { success: true }
+        : { success: false, 'error-codes': ['invalid-input-response'] },
+    ),
+  );
+  t.mock.method(console, 'warn', () => {});
+
+  const missing = bindings();
+  missing.TURNSTILE_SECRET = 'secret';
+  const unverified = await handleRemoval(request(), missing);
+  assert.equal(unverified.status, 403);
+  assert.equal(verify.mock.callCount(), 0);
+  assert.equal(missing.calls.inputs.length, 0);
+
+  const invalid = bindings();
+  invalid.TURNSTILE_SECRET = 'secret';
+  const rejected = await handleRemoval(
+    request({ headers: { 'x-bgpoof-verification': 'bad' } }),
+    invalid,
+  );
+  assert.equal(rejected.status, 403);
+  assert.equal(invalid.calls.inputs.length, 0);
+
+  const valid = bindings();
+  valid.TURNSTILE_SECRET = 'secret';
+  const accepted = await handleRemoval(
+    request({ headers: { 'x-bgpoof-verification': 'good' } }),
+    valid,
+  );
+  assert.equal(accepted.status, 200);
+  const sent = JSON.parse(verify.mock.calls.at(-1).arguments[1].body);
+  assert.deepEqual(sent, {
+    secret: 'secret',
+    response: 'good',
+    remoteip: '203.0.113.7',
+  });
+});
+
+void test('a Turnstile outage does not take removal down', async (t) => {
+  t.mock.method(console, 'warn', () => {});
+  for (const outage of [
+    async () => {
+      throw new Error('network');
+    },
+    async () => new Response('', { status: 500 }),
+    async () =>
+      Response.json({ success: false, 'error-codes': ['internal-error'] }),
+  ]) {
+    const mocked = t.mock.method(globalThis, 'fetch', outage);
+    const env = bindings();
+    env.TURNSTILE_SECRET = 'secret';
+    const response = await handleRemoval(
+      request({ headers: { 'x-bgpoof-verification': 'token' } }),
+      env,
+    );
+    assert.equal(response.status, 200);
+    mocked.mock.restore();
+  }
+});

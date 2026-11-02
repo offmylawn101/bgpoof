@@ -1,11 +1,21 @@
 import { expect, test, type Page } from '@playwright/test';
 
+const homeLanguages: Record<string, string> = {
+  '/': 'en',
+  '/id': 'id',
+  '/pt-br': 'pt-BR',
+  '/es': 'es',
+};
 const publicPaths = [
   '/',
+  '/id',
+  '/pt-br',
+  '/es',
   '/about',
   '/how-to-remove-background',
   '/transparent-png',
   '/background-removal-tips',
+  '/remove-bg-alternative',
 ];
 
 async function inspectHtml(page: Page, html: string) {
@@ -26,6 +36,15 @@ async function inspectHtml(page: Page, html: string) {
       canonicals: Array.from(
         document.querySelectorAll('link[rel="canonical"]'),
         (element) => element.getAttribute('href'),
+      ),
+      alternates: Object.fromEntries(
+        Array.from(
+          document.querySelectorAll('link[rel="alternate"][hreflang]'),
+          (element) => [
+            element.getAttribute('hreflang'),
+            element.getAttribute('href'),
+          ],
+        ),
       ),
       robots: contents('meta[name="robots"]'),
       headings: Array.from(document.querySelectorAll('h1'), (element) => {
@@ -88,7 +107,7 @@ test('every public page has complete, unique metadata before and after hydration
     expect(response.status(), path).toBe(200);
     expect(response.headers()['content-type']).toContain('text/html');
     const initial = await inspectHtml(page, await response.text());
-    expect(initial.language).toBe('en');
+    expect(initial.language).toBe(homeLanguages[path] ?? 'en');
     expect(initial.titles).toHaveLength(1);
     expect(initial.titles[0]).toBeTruthy();
     expect(initial.descriptions).toHaveLength(1);
@@ -129,11 +148,13 @@ test('every public page has complete, unique metadata before and after hydration
         expect.objectContaining({ '@type': 'WebSite', url: canonical.href }),
       );
       expect(initial.titles[0]).toBe(
-        'BG Poof — Remove photo backgrounds for free',
+        'Remove BG from Images Free: HD PNG, No Sign-Up | BG Poof',
       );
-      expect(initial.headings).toEqual(['Remove photo backgrounds.']);
+      expect(initial.headings).toEqual(['Free background remover.']);
       for (const linkedPath of publicPaths.slice(1))
         expect(initial.links).toContain(linkedPath);
+    } else if (path in homeLanguages) {
+      expect(initial.links).toContain('/');
     } else {
       const breadcrumbs = graph.find(
         (node) => node['@type'] === 'BreadcrumbList',
@@ -143,6 +164,24 @@ test('every public page has complete, unique metadata before and after hydration
       ).toEqual([new URL('/', siteOrigin).href, canonical.href]);
       expect(initial.links).toContain('/');
     }
+    if (path in homeLanguages)
+      expect(
+        Object.fromEntries(
+          Object.entries(initial.alternates).map(([language, href]) => [
+            language,
+            new URL(href as string).href,
+          ]),
+        ),
+      ).toEqual({
+        ...Object.fromEntries(
+          Object.entries(homeLanguages).map(([home, language]) => [
+            language,
+            new URL(home, siteOrigin).href,
+          ]),
+        ),
+        'x-default': new URL('/', siteOrigin).href,
+      });
+    else expect(initial.alternates).toEqual({});
     titles.add(initial.titles[0]!);
     descriptions.add(initial.descriptions[0]);
 
@@ -257,6 +296,27 @@ test('help pages remain reachable from the uploader and return visitors to it', 
     await expect(
       page.getByRole('button', { name: 'Upload image', exact: true }),
     ).toBeEnabled();
+  }
+});
+
+test('translated homepages show the tool and its errors in their language', async ({
+  page,
+}) => {
+  for (const [path, upload, error] of [
+    ['/id', 'Unggah gambar', 'Pilih foto JPG, PNG, atau WebP.'],
+    ['/pt-br', 'Enviar imagem', 'Escolha uma foto JPG, PNG ou WebP.'],
+    ['/es', 'Subir imagen', 'Elige una foto JPG, PNG o WebP.'],
+  ]) {
+    await page.goto(path);
+    await expect(
+      page.getByRole('button', { name: upload, exact: true }),
+    ).toBeEnabled();
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'notes.txt',
+      mimeType: 'text/plain',
+      buffer: Buffer.from('not an image'),
+    });
+    await expect(page.getByRole('alert')).toContainText(error);
   }
 });
 

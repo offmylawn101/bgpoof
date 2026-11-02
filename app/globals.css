@@ -720,6 +720,51 @@ kbd {
 .guide-page li {
   margin-bottom: 12px;
 }
+.comparison-table {
+  width: 100%;
+  margin: 18px 0 26px;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.comparison-table th,
+.comparison-table td {
+  padding: 10px 8px 10px 0;
+  border-bottom: 1px solid #e1e5ee;
+  text-align: left;
+  vertical-align: top;
+}
+.comparison-table thead th {
+  font-weight: 700;
+}
+.comparison-table tbody th {
+  width: 28%;
+  font-weight: 600;
+}
+.sample-list {
+  display: grid;
+  gap: 26px;
+  margin: 20px 0 8px;
+}
+.sample-list figure {
+  margin: 0;
+}
+.sample-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.sample-pair img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+.sample-list figcaption {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.55;
+}
 .guide-page .guide-cta {
   display: inline-block;
   padding: 10px 18px;

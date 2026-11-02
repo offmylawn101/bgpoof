@@ -4,14 +4,22 @@ import { refineMask } from './refine-mask.js';
 import { applyEdgeColors } from './edge-colors.js';
 
 const scope = self as unknown as DedicatedWorkerGlobalScope;
-const report = (message: string) =>
-  scope.postMessage({ type: 'progress', message });
+const report = (message: string, refinement?: string | null) =>
+  scope.postMessage({
+    type: 'progress',
+    message,
+    refinement: refinement ?? undefined,
+  });
 
 // Only a compact copy is uploaded. Keep original pixels and alpha for the PNG.
 // Transfer the already-decoded bitmap; resizing and encoding run off the UI thread.
 scope.onmessage = async ({
   data,
-}: MessageEvent<{ bitmap: ImageBitmap; source?: Blob }>) => {
+}: MessageEvent<{
+  bitmap: ImageBitmap;
+  source?: Blob;
+  verification?: string;
+}>) => {
   let original: ImageBitmap | undefined;
   let mask: ImageBitmap | undefined;
   let small: OffscreenCanvas | undefined;
@@ -52,7 +60,12 @@ scope.onmessage = async ({
     report('Removing the background…');
     const response = await fetch('/api/remove-background', {
       method: 'POST',
-      headers: { 'Content-Type': upload.type },
+      headers: {
+        'Content-Type': upload.type,
+        ...(data.verification
+          ? { 'X-BGPoof-Verification': data.verification }
+          : {}),
+      },
       body: upload,
       cache: 'no-store',
       credentials: 'omit',
@@ -62,9 +75,12 @@ scope.onmessage = async ({
       const detail = (await response.json().catch(() => null)) as {
         error?: string;
       } | null;
-      throw new Error(
-        detail?.error ||
-          'The background remover couldn’t finish. Please try again.',
+      throw Object.assign(
+        new Error(
+          detail?.error ||
+            'The background remover couldn’t finish. Please try again.',
+        ),
+        { reason: `http_${response.status}` },
       );
     }
     if (!response.headers.get('Content-Type')?.startsWith('image/png'))
@@ -73,7 +89,10 @@ scope.onmessage = async ({
       );
     const hasMatting =
       response.headers.get('X-BGPoof-Matte-Format') === 'delta-rgb-v1';
-    report('Receiving your cutout…');
+    report(
+      'Receiving your cutout…',
+      response.headers.get('X-BGPoof-Refinement'),
+    );
     mask = await createImageBitmap(await response.blob());
     if (mask.width !== small.width || mask.height !== small.height)
       throw new Error(
@@ -121,7 +140,15 @@ scope.onmessage = async ({
         : error instanceof Error && error.name !== 'TypeError'
           ? error.message
           : 'We couldn’t reach the background remover. Check your connection and try again.';
-    scope.postMessage({ type: 'error', message });
+    const name = error instanceof Error ? error.name : '';
+    const reason =
+      (error as { reason?: string } | null)?.reason ??
+      (name === 'TimeoutError'
+        ? 'timeout'
+        : name === 'TypeError'
+          ? 'network'
+          : 'browser');
+    scope.postMessage({ type: 'error', message, reason });
   } finally {
     original?.close();
     mask?.close();

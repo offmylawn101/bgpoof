@@ -10,9 +10,15 @@ BG Poof keeps the background remover first and places instructions, common quest
 | `/how-to-remove-background` | Upload, paste, save, compare, and use the tool on a phone                      |
 | `/transparent-png`          | Understand transparency, checkerboards, copying, and PNG versus JPG            |
 | `/background-removal-tips`  | Diagnose missing details and describe the limits of automatic cutouts          |
+| `/remove-bg-alternative`    | What is changing at remove.bg, a factual comparison, and BG Poof's own results |
 | `/about`                    | Processing, privacy, analytics, limits, and credits                            |
+| `/id`, `/pt-br`, `/es`      | Translated homepages with the full tool; guides stay in English                |
 
 `lib/seo.ts` owns the page inventory, metadata, absolute URLs, and structured data. Update that inventory when adding or removing a public page. Titles and descriptions must describe the actual page. Keep links visible and useful. Do not add invented review scores, dates, performance promises, or claims of perfect removal.
+
+Homepage text for all languages, including the uploader's strings, is in `lib/copy.ts`. The translated homepages link to each other with hreflang tags and from the footer of every page. The translations were written by Claude and have not had a native-speaker review.
+
+Keep `/remove-bg-alternative` to public facts with links, and to BG Poof's own results. [remove.bg's terms](https://www.remove.bg/tos) prohibit benchmarking and accessing the service to market a competing product, so don't run comparison tests against it. Recheck the page's remove.bg details after December 1, 2026.
 
 The JSON-LD describes the website and its pages, with breadcrumbs matching visible navigation. No ratings, software rich-result eligibility, or FAQ rich-result eligibility are claimed. The 1200 × 630 PNG social card uses the same credited demo photo as the uploader; social metadata is provided for every page.
 
@@ -25,7 +31,7 @@ Set `VITE_BGPOOF_SITE_URL` to the public origin and rebuild. On BG Poof this is 
 - Other Worker hostnames receive `X-Robots-Tag: noindex, follow`. Error responses and processing endpoints receive `noindex`.
 - Unknown pages return a real 404 with a link back to the tool.
 - `/robots.txt` allows public pages, excludes `/api/`, and advertises `/sitemap.xml`. Cloudflare may prepend its own managed robots directives; verify the final response after deployment.
-- The sitemap lists only the five public canonical URLs. It omits arbitrary `priority`, `changefreq`, and fabricated `lastmod` values.
+- The sitemap lists only the nine public canonical URLs. It omits arbitrary `priority`, `changefreq`, and fabricated `lastmod` values.
 
 ## Verify a release
 
@@ -42,6 +48,16 @@ The local SEO preview runs the built Worker without production bindings, account
 Measure the homepage separately with a mobile Lighthouse run and inspect Core Web Vitals in Search Console when enough field data exists. A lab score is a diagnostic, not a ranking forecast. Check the uploader and a real image removal after changes to its component or assets.
 
 ## Search Console and ongoing work
+
+After a deploy that adds or changes pages, tell Bing and other IndexNow engines. The key is the file in `public/` with a 32-character hex name:
+
+```sh
+KEY=$(basename public/????????????????????????????????.txt .txt)
+curl -sS -X POST https://api.indexnow.org/indexnow -H 'Content-Type: application/json' \
+  -d "{\"host\":\"bgpoof.com\",\"key\":\"$KEY\",\"urlList\":[\"https://bgpoof.com/\"]}"
+```
+
+Track `removal_error` by `reason` and `removal_complete` by `refinement` in OpenPanel. `http_429` shows real users hitting the per-IP limit, which is the evidence for changing it. `cloudflare` as the refinement means the native service was busy or unavailable.
 
 1. In Google Search Console, add the `bgpoof.com` domain property. Verify with the Google-provided DNS TXT record in the domain's Cloudflare account, or use an existing verified property. Analytics installation alone is not proof of Search Console ownership.
 2. Submit `https://bgpoof.com/sitemap.xml`. Inspect the homepage and new guides using the live URL test; request indexing once for pages that are ready.
