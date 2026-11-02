@@ -650,7 +650,7 @@ function Comparison({
           }
           alt={demo ? copy.demoCutoutAlt : copy.cutoutAlt}
           className="comparison-image result-image"
-          fetchPriority={demo ? 'high' : undefined}
+          loading={demo ? 'lazy' : undefined}
           width={demo ? 1600 : undefined}
           height={demo ? 1200 : undefined}
           draggable={false}
@@ -669,6 +669,7 @@ function Comparison({
           }
           alt={demo ? copy.demoOriginalAlt : copy.originalAlt}
           className="comparison-image original-image"
+          loading={demo ? 'lazy' : undefined}
           width={demo ? 1600 : undefined}
           height={demo ? 1200 : undefined}
           style={{
