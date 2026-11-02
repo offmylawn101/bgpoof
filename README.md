@@ -1,6 +1,6 @@
 # BG Poof
 
-Remove photo backgrounds by uploading, dropping, or pasting a JPG, PNG, or WebP. The hosted app at [bgpoof.com](https://bgpoof.com) has no accounts, watermarks, or paid download tiers. The result frame follows the photo's dimensions; right-click the completed image to copy it, or download the full-resolution transparent PNG. An 800 ms reveal shows the cutout, with immediate display for reduced-motion users.
+Remove photo backgrounds by uploading, dropping, or pasting a JPG, PNG, or WebP. The hosted app at [bgpoof.com](https://bgpoof.com) has no accounts, watermarks, or paid download tiers; each image opens one ad in a new tab. The result frame follows the photo's dimensions; right-click the completed image to copy it, or download the full-resolution transparent PNG. An 800 ms reveal shows the cutout, with immediate display for reduced-motion users.
 
 This repository contains the MIT-licensed application and optional native refinement service. Background segmentation uses Cloudflare Images: its service and model are not bundled. Running your own copy requires your own Cloudflare access and usage allowance. BG Poof is independent of remove.bg and Canva.
 
@@ -38,13 +38,14 @@ Enable Images access in your Cloudflare account. Development and production prev
 
 Optional public build settings in `.env.local`:
 
-| Setting                          | Purpose                                                                                                                                                                                    |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `VITE_BGPOOF_SITE_URL`           | Your canonical site origin for metadata, structured data, sitemap, and `www`/HTTP redirects. Other Worker hostnames receive `noindex`. Leave empty for no forced canonical redirect.       |
-| `VITE_BGPOOF_GA_ID`              | Your Google Analytics measurement ID. Empty disables Google Analytics.                                                                                                                     |
-| `VITE_BGPOOF_WEB_ANALYTICS`      | Set to `true` only when Cloudflare Web Analytics is enabled for your deployment. This controls the privacy disclosure; it does not enable the service.                                     |
-| `VITE_BGPOOF_PANEL_APP`          | App name for the project's own OpenPanel loader at `panel.offmylawn.com`. Leave empty in your own deployment; empty disables it and its disclosure on the About page.                      |
-| `VITE_BGPOOF_TURNSTILE_SITE_KEY` | Site key of an invisible Cloudflare Turnstile widget. Pair it with the `TURNSTILE_SECRET` Worker secret; removal requests without a valid token then return 403. Empty disables the check. |
+| Setting                          | Purpose                                                                                                                                                                                                                 |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_BGPOOF_SITE_URL`           | Your canonical site origin for metadata, structured data, sitemap, and `www`/HTTP redirects. Other Worker hostnames receive `noindex`. Leave empty for no forced canonical redirect.                                    |
+| `VITE_BGPOOF_GA_ID`              | Your Google Analytics measurement ID. Empty disables Google Analytics.                                                                                                                                                  |
+| `VITE_BGPOOF_WEB_ANALYTICS`      | Set to `true` only when Cloudflare Web Analytics is enabled for your deployment. This controls the privacy disclosure; it does not enable the service.                                                                  |
+| `VITE_BGPOOF_PANEL_APP`          | App name for the project's own OpenPanel loader at `panel.offmylawn.com`. Leave empty in your own deployment; empty disables it and its disclosure on the About page.                                                   |
+| `VITE_BGPOOF_TURNSTILE_SITE_KEY` | Site key of an invisible Cloudflare Turnstile widget. Pair it with the `TURNSTILE_SECRET` Worker secret; removal requests without a valid token then return 403. Empty disables the check.                              |
+| `VITE_BGPOOF_AD_URL`             | Ad link opened in a new tab before each image is processed. Leave empty in your own deployment or use your own link; empty disables the ad step and its disclosure on the About page. Help text always mentions the ad. |
 
 These `VITE_` values are public and embedded at build time. Keep credentials in Wrangler authentication or Worker secrets, not in these settings or committed files. Changes require a rebuild.
 
@@ -166,7 +167,7 @@ The interactive uploader is a client component. Help content and navigation are 
 
 See [docs/SEO.md](docs/SEO.md) for the route inventory, validation commands, Search Console setup, and ongoing measurement. Neither metadata nor a sitemap guarantees indexing or rankings.
 
-`npm test` runs Playwright browser tests against `BASE_URL`, defaulting to `http://localhost:3090`. Start the app first and install the configured browser with `npx playwright install chrome`. Tests that actually remove photos need a working Images binding and count toward its rate limit. Set `BGPOOF_TEST_GA_ID` to the target site's measurement ID when testing an analytics-enabled deployment; leave it unset for the default analytics-free build. The bundled portrait fixture and its rights are documented in [tests/ASSETS.md](tests/ASSETS.md).
+`npm test` runs Playwright browser tests against `BASE_URL`, defaulting to `http://localhost:3090`. Start the app first, with `VITE_BGPOOF_AD_URL=` empty so tests don't stop at the ad step, and install the configured browser with `npx playwright install chrome`. Tests that actually remove photos need a working Images binding and count toward its rate limit. Set `BGPOOF_TEST_GA_ID` to the target site's measurement ID when testing an analytics-enabled deployment; leave it unset for the default analytics-free build. The bundled portrait fixture and its rights are documented in [tests/ASSETS.md](tests/ASSETS.md).
 
 The optional quality check accepts local paths to a source photo and a reference transparent PNG of the same uncropped image:
 

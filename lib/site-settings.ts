@@ -11,3 +11,4 @@ export const webAnalyticsEnabled =
 export const panelApp = import.meta.env.VITE_BGPOOF_PANEL_APP || '';
 export const turnstileSiteKey =
   import.meta.env.VITE_BGPOOF_TURNSTILE_SITE_KEY || '';
+export const adUrl = import.meta.env.VITE_BGPOOF_AD_URL || '';

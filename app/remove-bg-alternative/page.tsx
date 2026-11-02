@@ -91,7 +91,9 @@ export default function RemoveBgAlternative() {
                 full size uses a credit
               </a>
             </td>
-            <td>Original dimensions, up to 25 megapixels</td>
+            <td>
+              Original dimensions, up to 25 megapixels, with one ad per image
+            </td>
           </tr>
           <tr>
             <th scope="row">Account</th>
@@ -180,6 +182,10 @@ export default function RemoveBgAlternative() {
         <li>
           <a href="/">Open BG Poof</a> and upload, drop, or paste a JPG, PNG, or
           WebP.
+        </li>
+        <li>
+          Choose Remove background (1 ad). One ad opens in a new tab. Come back
+          and choose Remove background.
         </li>
         <li>Check the cutout, then download the transparent PNG.</li>
       </ol>
