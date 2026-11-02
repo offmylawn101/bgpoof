@@ -41,7 +41,9 @@ test('Google Analytics initializes once on each page without blocking the app', 
   };
 
   await page.goto('/');
-  await expect(page).toHaveTitle('BG Poof — Remove photo backgrounds for free');
+  await expect(page).toHaveTitle(
+    'Remove BG from Images Free: HD PNG, No Sign-Up | BG Poof',
+  );
   await expect(page.locator('.site-shell')).toHaveAttribute(
     'data-ready',
     'true',

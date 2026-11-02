@@ -3,10 +3,28 @@ import { siteUrl } from './site-settings';
 
 export const sitePages = {
   '/': {
-    title: 'BG Poof — Remove photo backgrounds for free',
+    title: 'Remove BG from Images Free: HD PNG, No Sign-Up | BG Poof',
     description:
-      'Remove a photo background for free. Paste, drop, or upload a JPG, PNG, or WebP and download a transparent PNG at the original size. No account or watermark.',
+      'Free background remover. Remove the background from an image in seconds and download a full-size transparent PNG. No account, no watermark.',
     label: 'Background remover',
+  },
+  '/id': {
+    title: 'Hapus Background Foto Gratis: PNG HD, Tanpa Daftar | BG Poof',
+    description:
+      'Hapus background foto gratis dalam hitungan detik, lalu unduh PNG transparan ukuran penuh. Tanpa akun, tanpa watermark. Mendukung JPG, PNG, dan WebP.',
+    label: 'Bahasa Indonesia',
+  },
+  '/pt-br': {
+    title: 'Remover Fundo de Imagem Grátis: PNG HD, Sem Cadastro | BG Poof',
+    description:
+      'Remova o fundo de qualquer imagem em segundos e baixe um PNG transparente em tamanho original. Grátis, sem cadastro e sem marca d’água.',
+    label: 'Português (Brasil)',
+  },
+  '/es': {
+    title: 'Quitar Fondo de Imagen Gratis: PNG HD, Sin Registro | BG Poof',
+    description:
+      'Quita el fondo de cualquier imagen en segundos y descarga un PNG transparente a tamaño completo. Gratis, sin registro y sin marca de agua.',
+    label: 'Español',
   },
   '/how-to-remove-background': {
     title: 'How to remove a photo background for free | BG Poof',
@@ -26,6 +44,12 @@ export const sitePages = {
       'Troubleshoot missing hair, foil, glass, and leftover backgrounds. See which photo changes may help BG Poof and when a cutout needs manual editing.',
     label: 'Getting a better cutout',
   },
+  '/remove-bg-alternative': {
+    title: 'Free remove.bg Alternative: No Account, Full-Size PNG | BG Poof',
+    description:
+      'remove.bg is moving into Canva on December 1, 2026. BG Poof is a free, independent background remover with full-size PNGs, no account, and no watermark.',
+    label: 'A free remove.bg alternative',
+  },
   '/about': {
     title: 'About & licenses — BG Poof',
     description:
@@ -39,7 +63,19 @@ export const guidePaths = [
   '/how-to-remove-background',
   '/transparent-png',
   '/background-removal-tips',
+  '/remove-bg-alternative',
 ] as const;
+export type GuidePath = (typeof guidePaths)[number];
+
+const homeVersions = {
+  '/': { language: 'en', ogLocale: 'en_US' },
+  '/id': { language: 'id', ogLocale: 'id_ID' },
+  '/pt-br': { language: 'pt-BR', ogLocale: 'pt_BR' },
+  '/es': { language: 'es', ogLocale: 'es_ES' },
+} as const;
+export type HomePath = keyof typeof homeVersions;
+export const homePaths = Object.keys(homeVersions) as HomePath[];
+const isHome = (path: PagePath): path is HomePath => path in homeVersions;
 
 export function absoluteUrl(path: string) {
   return new URL(path, siteUrl).href;
@@ -56,11 +92,24 @@ export function pageMetadata(path: PagePath): Metadata {
   return {
     title,
     description,
-    alternates: { canonical: absoluteUrl(path) },
+    alternates: {
+      canonical: absoluteUrl(path),
+      ...(isHome(path) && {
+        languages: {
+          ...Object.fromEntries(
+            homePaths.map((home) => [
+              homeVersions[home].language,
+              absoluteUrl(home),
+            ]),
+          ),
+          'x-default': absoluteUrl('/'),
+        },
+      }),
+    },
     robots: 'index, follow, max-image-preview:large',
     openGraph: {
       type: 'website',
-      locale: 'en_US',
+      locale: isHome(path) ? homeVersions[path].ogLocale : 'en_US',
       siteName: 'BG Poof',
       title,
       description,
@@ -95,13 +144,13 @@ export function pageSchema(path: PagePath) {
         url: absoluteUrl(path),
         name: page.title,
         description: page.description,
-        inLanguage: 'en',
+        inLanguage: isHome(path) ? homeVersions[path].language : 'en',
         isPartOf: { '@id': website['@id'] },
-        ...(path !== '/' && {
+        ...(!isHome(path) && {
           breadcrumb: { '@id': absoluteUrl(`${path}#breadcrumb`) },
         }),
       },
-      ...(path === '/'
+      ...(isHome(path)
         ? []
         : [
             {

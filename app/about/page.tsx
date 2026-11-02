@@ -1,4 +1,9 @@
-import { analyticsId, webAnalyticsEnabled } from '@/lib/site-settings';
+import {
+  analyticsId,
+  panelApp,
+  turnstileSiteKey,
+  webAnalyticsEnabled,
+} from '@/lib/site-settings';
 import { pageMetadata } from '@/lib/seo';
 import { PageSchema } from '@/components/page-schema';
 import { SiteFooter } from '@/components/site-footer';
@@ -60,7 +65,16 @@ export default function About() {
         ) : (
           <p>Google Analytics is disabled on this installation.</p>
         )}
-        <p>Your photos are not included in analytics.</p>
+        {panelApp && (
+          <p>
+            We also use <a href="https://openpanel.dev/">OpenPanel</a>, hosted
+            at panel.offmylawn.com, to measure product use. It stores a random
+            ID in your browser and records page views, outbound link clicks, and
+            events such as a removal starting, finishing, or failing and a PNG
+            being downloaded, along with the image type and size in megapixels.
+          </p>
+        )}
+        <p>Your photos and file names are not included in analytics.</p>
         {webAnalyticsEnabled && (
           <p>
             Cloudflare also hosts the website and collects cookie-free
@@ -70,6 +84,19 @@ export default function About() {
             </a>
             .
           </p>
+        )}
+        {turnstileSiteKey && (
+          <>
+            <h2>Abuse protection</h2>
+            <p>
+              When you add a photo, your browser completes an automatic{' '}
+              <a href="https://www.cloudflare.com/products/turnstile/">
+                Cloudflare Turnstile
+              </a>{' '}
+              check so that automated scripts can’t use the service. Turnstile
+              does not receive your photo.
+            </p>
+          </>
         )}
         <h2>Supported photos</h2>
         <p>

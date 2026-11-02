@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-export function ProcessingStats() {
+export function ProcessingStats({ one, many }: { one: string; many: string }) {
   const [count, setCount] = useState<number | null>(null);
 
   useEffect(() => {
@@ -35,7 +35,7 @@ export function ProcessingStats() {
       {count !== null && (
         <>
           <strong>{count.toLocaleString('en-US')}</strong>{' '}
-          {count === 1 ? 'image processed' : 'images processed'}
+          {count === 1 ? one : many}
         </>
       )}
     </p>

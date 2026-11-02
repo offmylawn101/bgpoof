@@ -8,3 +8,6 @@ export const analyticsId = /^G-[A-Z0-9]+$/.test(configuredAnalyticsId)
   : '';
 export const webAnalyticsEnabled =
   import.meta.env.VITE_BGPOOF_WEB_ANALYTICS === 'true';
+export const panelApp = import.meta.env.VITE_BGPOOF_PANEL_APP || '';
+export const turnstileSiteKey =
+  import.meta.env.VITE_BGPOOF_TURNSTILE_SITE_KEY || '';

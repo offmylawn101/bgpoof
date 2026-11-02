@@ -14,7 +14,7 @@ Automatic GrabCut recovery was removed after it restored ground beneath a fly th
 
 The browser applies the result to original pixels and existing transparency, then encodes a PNG at the original dimensions. A smaller preview appears first; the progress indicator continues through the actual processing stages until the downloadable PNG is ready. It does not estimate a percentage for operations that provide none. The completed image replaces the preview for native copying.
 
-Application code does not persist uploads or results. The optional native service processes images in memory and does not log their contents. Cloudflare still processes the uploaded image under its own service terms. Browser working images are released when replaced, cleared, or the page closes. Google Analytics is disabled by default in self-hosted copies; deployments can enable their own analytics. Photo contents are not sent to analytics.
+Application code does not persist uploads or results. The optional native service processes images in memory and does not log their contents. Cloudflare still processes the uploaded image under its own service terms. Browser working images are released when replaced, cleared, or the page closes. Analytics are disabled by default in self-hosted copies; deployments can enable their own. Photo contents are not sent to analytics.
 
 Inputs are limited to 25 MB, 25 megapixels, and 8,192 pixels per side. Five-second completion is a target, not a guarantee: network speed, image size, browser encoding, and provider load affect latency. Edge refinement cannot restore large foreground regions missed by Cloudflare. Hair, glass, shadows, and ambiguous subjects can still need editing. See [server/README.md](server/README.md) for the native algorithm and safeguards.
 
@@ -38,11 +38,13 @@ Enable Images access in your Cloudflare account. Development and production prev
 
 Optional public build settings in `.env.local`:
 
-| Setting                     | Purpose                                                                                                                                                                              |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `VITE_BGPOOF_SITE_URL`      | Your canonical site origin for metadata, structured data, sitemap, and `www`/HTTP redirects. Other Worker hostnames receive `noindex`. Leave empty for no forced canonical redirect. |
-| `VITE_BGPOOF_GA_ID`         | Your Google Analytics measurement ID. Empty disables Google Analytics.                                                                                                               |
-| `VITE_BGPOOF_WEB_ANALYTICS` | Set to `true` only when Cloudflare Web Analytics is enabled for your deployment. This controls the privacy disclosure; it does not enable the service.                               |
+| Setting                          | Purpose                                                                                                                                                                                    |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `VITE_BGPOOF_SITE_URL`           | Your canonical site origin for metadata, structured data, sitemap, and `www`/HTTP redirects. Other Worker hostnames receive `noindex`. Leave empty for no forced canonical redirect.       |
+| `VITE_BGPOOF_GA_ID`              | Your Google Analytics measurement ID. Empty disables Google Analytics.                                                                                                                     |
+| `VITE_BGPOOF_WEB_ANALYTICS`      | Set to `true` only when Cloudflare Web Analytics is enabled for your deployment. This controls the privacy disclosure; it does not enable the service.                                     |
+| `VITE_BGPOOF_PANEL_APP`          | App name for the project's own OpenPanel loader at `panel.offmylawn.com`. Leave empty in your own deployment; empty disables it and its disclosure on the About page.                      |
+| `VITE_BGPOOF_TURNSTILE_SITE_KEY` | Site key of an invisible Cloudflare Turnstile widget. Pair it with the `TURNSTILE_SECRET` Worker secret; removal requests without a valid token then return 403. Empty disables the check. |
 
 These `VITE_` values are public and embedded at build time. Keep credentials in Wrangler authentication or Worker secrets, not in these settings or committed files. Changes require a rebuild.
 
@@ -72,6 +74,10 @@ The required bindings are:
 - `REMOVAL_LIMITER`: 10 removal requests per 60 seconds, keyed by client IP. People sharing an IP share the allowance. Cloudflare's [rate-limit counters](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/) operate per location with eventual consistency; this is not an exact global quota.
 
 No separate image API key is needed; Images is accessed through the Worker binding.
+
+Cloudflare Images' free allowance is 5,000 unique transformations a month. Past that, every new removal fails with a 503 and logs `background_removal_quota_exceeded`, so purchase Images & Stream in the Cloudflare dashboard before a public instance gets real traffic.
+
+Turnstile is optional. To enable it, create an invisible widget for your domain, set `VITE_BGPOOF_TURNSTILE_SITE_KEY`, and run `npx wrangler secret put TURNSTILE_SECRET --config wrangler.production.jsonc`. A Turnstile outage lets uploads through rather than stopping removal.
 
 ### Optional native refinement
 
@@ -154,7 +160,7 @@ For a local development counter, apply the migration with `--local` instead of `
 
 ## Search and sharing
 
-The homepage and three practical guides provide readable server-rendered content. Each public page has its own title, description, canonical URL, social metadata, and factual structured data. `/sitemap.xml` and `/robots.txt` are generated from the configured site origin; processing endpoints are excluded. Unknown pages return 404, and secondary deployment hostnames are marked `noindex` when a canonical origin is configured.
+The homepage, its Indonesian, Brazilian Portuguese, and Spanish versions, and four practical guides provide readable server-rendered content. Each public page has its own title, description, canonical URL, social metadata, and factual structured data. `/sitemap.xml` and `/robots.txt` are generated from the configured site origin; processing endpoints are excluded. Unknown pages return 404, and secondary deployment hostnames are marked `noindex` when a canonical origin is configured.
 
 The interactive uploader is a client component. Help content and navigation are passed from the server, so they do not add guide code to the client bundle. Responsive WebP demo images reduce initial download size; the full-size original is fetched only when someone tries the example. To regenerate the checked-in demo previews and social card after changing their source, run `npm run assets:preview` with Chrome installed. The example and its derivatives retain the attribution on the About page.
 

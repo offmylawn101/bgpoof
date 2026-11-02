@@ -25,7 +25,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
+import type { RemoverCopy } from '@/lib/copy';
 import { removePhotoBackground, type RemovalProgress } from '@/lib/removal';
+import { prepareVerification, takeVerification } from '@/lib/turnstile';
 import { registerDownloadTool } from '@/lib/webmcp';
 import { ProcessingStats } from '@/components/processing-stats';
 
@@ -56,10 +58,18 @@ const serverReady = () => false;
 export default function BackgroundRemover({
   children,
   footer,
+  copy,
+  homeHref,
 }: {
   children: ReactNode;
   footer: ReactNode;
+  copy: RemoverCopy;
+  homeHref: string;
 }) {
+  const say = useCallback(
+    (message: string) => copy.messages?.[message] ?? message,
+    [copy],
+  );
   const ready = useSyncExternalStore(
     subscribeToHydration,
     clientReady,
@@ -109,14 +119,18 @@ export default function BackgroundRemover({
   const start = useCallback(
     async (file: File) => {
       if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-        setError('Choose a JPG, PNG, or WebP photo.');
+        setError(say('Choose a JPG, PNG, or WebP photo.'));
         return;
       }
       if (file.size > 25 * 1024 * 1024) {
-        setError('This photo is too large. Choose one smaller than 25 MB.');
+        setError(
+          say('This photo is too large. Choose one smaller than 25 MB.'),
+        );
         return;
       }
       track('removal_start', { type: file.type });
+      const verification = takeVerification();
+      let refinement = 'unknown';
       const id = ++operation.current;
       controller.current?.abort();
       const abort = new AbortController();
@@ -145,6 +159,7 @@ export default function BackgroundRemover({
           bitmap,
           abort.signal,
           (next) => {
+            refinement = next.refinement ?? refinement;
             if (id === operation.current) setProgress(next);
           },
           (preview) => {
@@ -161,40 +176,48 @@ export default function BackgroundRemover({
             }
           },
           file,
+          await verification,
         );
         if (id !== operation.current) return;
         const result = URL.createObjectURL(blob);
         replacePhoto({ ...current, result });
         setBusy(false);
-        track('removal_complete', { megapixels: Math.round((width * height) / 1e5) / 10 });
+        track('removal_complete', {
+          megapixels: Math.round((width * height) / 1e5) / 10,
+          refinement,
+        });
         resultHeading.current?.focus();
       } catch (cause) {
         if (id !== operation.current || abort.signal.aborted) return;
-        track('removal_error');
+        track('removal_error', {
+          reason: (cause as { reason?: string }).reason ?? 'decode',
+        });
         setBusy(false);
         setError(
-          cause instanceof Error
-            ? cause.message
-            : 'We couldn’t read this photo. Try another JPG, PNG, or WebP.',
+          say(
+            cause instanceof Error
+              ? cause.message
+              : 'We couldn’t read this photo. Try another JPG, PNG, or WebP.',
+          ),
         );
       } finally {
         // A transferred bitmap is already detached; also close on validation/cancellation.
         bitmap?.close();
       }
     },
-    [replacePhoto],
+    [replacePhoto, say],
   );
 
   const receive = useCallback(
     (files: FileList | File[]) => {
       if (!files.length) return;
       if (files.length > 1) {
-        setError('Choose one photo at a time.');
+        setError(say('Choose one photo at a time.'));
         return;
       }
       void start(files[0]);
     },
-    [start],
+    [say, start],
   );
 
   useEffect(() => {
@@ -211,6 +234,7 @@ export default function BackgroundRemover({
     const enter = (event: DragEvent) => {
       if (!event.dataTransfer?.types.includes('Files')) return;
       event.preventDefault();
+      prepareVerification();
       dragDepth.current += 1;
       setDragging(true);
     };
@@ -269,6 +293,7 @@ export default function BackgroundRemover({
 
   async function tryExample() {
     track('example_try');
+    prepareVerification();
     try {
       const response = await fetch('/example.jpg');
       if (!response.ok)
@@ -282,7 +307,9 @@ export default function BackgroundRemover({
       );
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : 'The example couldn’t load.',
+        say(
+          cause instanceof Error ? cause.message : 'The example couldn’t load.',
+        ),
       );
     }
   }
@@ -292,14 +319,14 @@ export default function BackgroundRemover({
   return (
     <div className="site-shell" data-ready={ready}>
       <header className="site-header">
-        <a className="wordmark" href="/" aria-label="bgpoof home">
+        <a className="wordmark" href={homeHref} aria-label={copy.home}>
           <span className="brand-icon">
             <span />
           </span>
           bgpoof<span className="brand-dot">.</span>
         </a>
         <span className="header-note">
-          <span className="status-dot" /> Free. No account needed.
+          <span className="status-dot" /> {copy.headerNote}
         </span>
       </header>
 
@@ -309,7 +336,7 @@ export default function BackgroundRemover({
           disabled={!ready}
           type="file"
           accept={ACCEPT}
-          aria-label="Upload photo"
+          aria-label={copy.uploadLabel}
           className="sr-only"
           tabIndex={-1}
           onChange={(event) => {
@@ -323,18 +350,17 @@ export default function BackgroundRemover({
               <div className="home-workspace">
                 <div className="intro">
                   <span className="eyebrow">
-                    <Sparkles size={15} /> A little less background. A lot more
-                    photo.
+                    <Sparkles size={15} /> {copy.eyebrow}
                   </span>
                   <h1 id="main-heading">
-                    Remove photo
+                    {copy.headingStart}
                     <br />
-                    <span>backgrounds.</span>
+                    <span>{copy.headingEnd}</span>
                   </h1>
                   <p>
-                    Your photo, minus the distractions.
+                    {copy.introStart}
                     <br />
-                    Drop it in. Get a transparent PNG.
+                    {copy.introEnd}
                   </p>
                 </div>
                 <div className="upload-card">
@@ -344,45 +370,44 @@ export default function BackgroundRemover({
                   <Button
                     className="primary-button upload-button"
                     disabled={!ready}
+                    onPointerDown={prepareVerification}
                     onClick={() => input.current?.click()}
                   >
-                    <Upload size={20} /> Upload image
+                    <Upload size={20} /> {copy.upload}
                   </Button>
-                  <p className="drop-copy">or drop a photo anywhere</p>
+                  <p className="drop-copy">{copy.drop}</p>
                   <p className="paste-copy">
-                    You can also paste with <kbd>Ctrl</kbd> + <kbd>V</kbd>
+                    {copy.paste} <kbd>Ctrl</kbd> + <kbd>V</kbd>
                     <span className="mac-hint">
                       {' '}
                       / <kbd>⌘</kbd> + <kbd>V</kbd>
                     </span>
                   </p>
-                  <span className="file-hint">
-                    JPG, PNG, WebP · up to 25 MB / 25 MP
-                  </span>
+                  <span className="file-hint">{copy.fileHint}</span>
                   <div className="privacy-inline">
-                    <ShieldCheck size={16} /> Processed securely by Cloudflare.
+                    <ShieldCheck size={16} /> {copy.secure}
                   </div>
                 </div>
               </div>
               <footer className="hero-footer">
-                <ProcessingStats />
+                <ProcessingStats
+                  one={copy.imageProcessed}
+                  many={copy.imagesProcessed}
+                />
                 <p className="project-credit">
-                  Project by <a href="https://offmylawn.com/">offmylawn</a>
+                  {copy.credit} <a href="https://offmylawn.com/">offmylawn</a>
                 </p>
               </footer>
             </section>
-            <section
-              className="demo-section"
-              aria-label="Background removal example"
-            >
+            <section className="demo-section" aria-label={copy.demoSection}>
               <div className="demo-caption">
-                <span>See what disappears.</span>
+                <span>{copy.demoCaption}</span>
                 <Button
                   variant="ghost"
                   className="text-button"
                   onClick={tryExample}
                 >
-                  Try this photo <ArrowUpRight size={16} />
+                  {copy.tryPhoto} <ArrowUpRight size={16} />
                 </Button>
               </div>
               <Comparison
@@ -390,12 +415,13 @@ export default function BackgroundRemover({
                 result="/example-cutout.png"
                 value={demoCompare}
                 onChange={setDemoCompare}
-                label="Example before and after"
+                label={copy.demoCompare}
+                copy={copy}
                 demo
               />
               <p className="demo-hint">
                 <ChevronLeft size={14} />
-                <ChevronRight size={14} /> Slide to see the difference
+                <ChevronRight size={14} /> {copy.slide}
               </p>
             </section>
           </>
@@ -406,22 +432,22 @@ export default function BackgroundRemover({
           >
             <div className="result-topline">
               <div>
-                <span className="eyebrow">YOUR PHOTO, FRONT AND CENTER</span>
+                <span className="eyebrow">{copy.resultEyebrow}</span>
                 <h1 id="result-heading" ref={resultHeading} tabIndex={-1}>
                   {busy
                     ? photo.preview
-                      ? 'Background removed.'
-                      : 'A little disappearing act…'
+                      ? copy.removed
+                      : copy.working
                     : photo.result
-                      ? 'Background removed.'
-                      : 'Let’s try that again.'}
+                      ? copy.removed
+                      : copy.tryAgain}
                 </h1>
               </div>
               <Button
                 variant="ghost"
                 className="reset-button"
                 onClick={reset}
-                aria-label={busy ? 'Cancel removal' : 'Remove this photo'}
+                aria-label={busy ? copy.cancelRemoval : copy.clearPhoto}
               >
                 <X size={21} />
               </Button>
@@ -432,7 +458,8 @@ export default function BackgroundRemover({
                   original={photo.original}
                   result={photo.result ?? photo.preview}
                   value={compare}
-                  label="Your photo before and after"
+                  label={copy.photoCompare}
+                  copy={copy}
                   revealing={revealing}
                   processing={busy && !photo.preview}
                   width={photo.width}
@@ -445,32 +472,26 @@ export default function BackgroundRemover({
                     <span className="processing-symbol">
                       <LoaderCircle className="spin" size={28} />
                     </span>
-                    <h2>
-                      {photo.preview
-                        ? 'Finishing your PNG.'
-                        : 'Making the cut.'}
-                    </h2>
+                    <h2>{photo.preview ? copy.finishing : copy.cutting}</h2>
                     <output
                       id="processing-status"
                       className="processing-status"
                     >
-                      {progress.message}
+                      {say(progress.message)}
                     </output>
                     <Progress
                       value={null}
-                      aria-label="Background removal progress"
+                      aria-label={copy.progress}
                       aria-describedby="processing-status"
                       className="removal-progress"
                     />
-                    <p className="small-copy">
-                      Your download will appear when the PNG is ready.
-                    </p>
+                    <p className="small-copy">{copy.downloadNote}</p>
                     <Button
                       variant="outline"
                       className="secondary-button"
                       onClick={reset}
                     >
-                      Cancel
+                      {copy.cancel}
                     </Button>
                   </div>
                 ) : photo.result ? (
@@ -478,10 +499,10 @@ export default function BackgroundRemover({
                     <span className="success-icon">
                       <Check size={22} />
                     </span>
-                    <h2>All yours.</h2>
+                    <h2>{copy.allYours}</h2>
                     <p>
-                      A transparent background. <br />
-                      Your original resolution.
+                      {copy.transparent} <br />
+                      {copy.originalSize}
                     </p>
                     <a
                       className="primary-button download-button"
@@ -489,11 +510,11 @@ export default function BackgroundRemover({
                       download={downloadName}
                       onClick={() => track('download')}
                     >
-                      <ArrowDown size={20} /> Download PNG
+                      <ArrowDown size={20} /> {copy.download}
                     </a>
                     <span className="resolution">
                       {photo.width.toLocaleString()} ×{' '}
-                      {photo.height.toLocaleString()} px · full resolution
+                      {photo.height.toLocaleString()} px · {copy.fullResolution}
                     </span>
                     <Button
                       variant="outline"
@@ -505,7 +526,7 @@ export default function BackgroundRemover({
                       }}
                     >
                       <RotateCcw size={16} />{' '}
-                      {compare === 100 ? 'Show cutout' : 'Show original'}
+                      {compare === 100 ? copy.showCutout : copy.showOriginal}
                     </Button>
                     <div className="action-divider" />
                     <Button
@@ -513,13 +534,13 @@ export default function BackgroundRemover({
                       className="text-button"
                       onClick={() => input.current?.click()}
                     >
-                      <ImagePlus size={18} /> Try another photo
+                      <ImagePlus size={18} /> {copy.tryAnother}
                     </Button>
                   </>
                 ) : (
                   <>
-                    <h2>Give it another go.</h2>
-                    <p>You can choose another photo or retry this one.</p>
+                    <h2>{copy.anotherGo}</h2>
+                    <p>{copy.anotherGoText}</p>
                     <Button
                       className="primary-button"
                       onClick={async () => {
@@ -532,27 +553,24 @@ export default function BackgroundRemover({
                         );
                       }}
                     >
-                      Retry removal
+                      {copy.retry}
                     </Button>
                     <Button
                       variant="outline"
                       className="secondary-button"
                       onClick={() => input.current?.click()}
                     >
-                      Choose another photo
+                      {copy.chooseAnother}
                     </Button>
                   </>
                 )}
                 <div className="privacy-inline">
-                  <ShieldCheck size={16} /> No account. No watermark.
+                  <ShieldCheck size={16} /> {copy.noAccount}
                 </div>
               </aside>
             </div>
             {!busy && photo.result && (
-              <p className="result-hint">
-                Right-click the image to copy it. Paste or drop another photo to
-                keep going.
-              </p>
+              <p className="result-hint">{copy.resultHint}</p>
             )}
           </section>
         )}
@@ -561,7 +579,7 @@ export default function BackgroundRemover({
             <span>{error}</span>
             <Button
               variant="ghost"
-              aria-label="Dismiss error"
+              aria-label={copy.dismissError}
               onClick={() => setError('')}
             >
               <X size={17} />
@@ -575,8 +593,8 @@ export default function BackgroundRemover({
         <div className="drop-overlay">
           <div>
             <Upload size={44} />
-            <h2>Drop it like it’s background.</h2>
-            <p>Release your photo to start.</p>
+            <h2>{copy.dropTitle}</h2>
+            <p>{copy.dropText}</p>
           </div>
         </div>
       )}
@@ -590,6 +608,7 @@ function Comparison({
   value,
   onChange,
   label,
+  copy,
   demo = false,
   revealing = false,
   processing = false,
@@ -601,6 +620,7 @@ function Comparison({
   value: number;
   onChange?: (value: number) => void;
   label: string;
+  copy: RemoverCopy;
   demo?: boolean;
   revealing?: boolean;
   processing?: boolean;
@@ -628,11 +648,7 @@ function Comparison({
           sizes={
             demo ? '(max-width: 800px) calc(100vw - 48px), 600px' : undefined
           }
-          alt={
-            demo
-              ? 'Golden retriever cutout with its background removed'
-              : 'Your photo with a transparent background'
-          }
+          alt={demo ? copy.demoCutoutAlt : copy.cutoutAlt}
           className="comparison-image result-image"
           fetchPriority={demo ? 'high' : undefined}
           width={demo ? 1600 : undefined}
@@ -651,11 +667,7 @@ function Comparison({
           sizes={
             demo ? '(max-width: 800px) calc(100vw - 48px), 600px' : undefined
           }
-          alt={
-            demo
-              ? 'Golden retriever outdoors before background removal'
-              : 'Your original photo'
-          }
+          alt={demo ? copy.demoOriginalAlt : copy.originalAlt}
           className="comparison-image original-image"
           width={demo ? 1600 : undefined}
           height={demo ? 1200 : undefined}
@@ -672,13 +684,13 @@ function Comparison({
             className="image-label before-label"
             style={{ opacity: value > 12 ? 1 : 0 }}
           >
-            Original
+            {copy.originalLabel}
           </span>
           <span
             className="image-label after-label"
             style={{ opacity: value < 88 ? 1 : 0 }}
           >
-            Background removed
+            {copy.removedLabel}
           </span>
           {(demo || revealing) && (
             <div className="comparison-line" aria-hidden="true">
