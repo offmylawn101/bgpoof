@@ -38,14 +38,14 @@ Enable Images access in your Cloudflare account. Development and production prev
 
 Optional public build settings in `.env.local`:
 
-| Setting                          | Purpose                                                                                                                                                                                                                 |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `VITE_BGPOOF_SITE_URL`           | Your canonical site origin for metadata, structured data, sitemap, and `www`/HTTP redirects. Other Worker hostnames receive `noindex`. Leave empty for no forced canonical redirect.                                    |
-| `VITE_BGPOOF_GA_ID`              | Your Google Analytics measurement ID. Empty disables Google Analytics.                                                                                                                                                  |
-| `VITE_BGPOOF_WEB_ANALYTICS`      | Set to `true` only when Cloudflare Web Analytics is enabled for your deployment. This controls the privacy disclosure; it does not enable the service.                                                                  |
-| `VITE_BGPOOF_PANEL_APP`          | App name for the project's own OpenPanel loader at `panel.offmylawn.com`. Leave empty in your own deployment; empty disables it and its disclosure on the About page.                                                   |
-| `VITE_BGPOOF_TURNSTILE_SITE_KEY` | Site key of an invisible Cloudflare Turnstile widget. Pair it with the `TURNSTILE_SECRET` Worker secret; removal requests without a valid token then return 403. Empty disables the check.                              |
-| `VITE_BGPOOF_AD_URL`             | Ad link opened in a new tab before each image is processed. Leave empty in your own deployment or use your own link; empty disables the ad step and its disclosure on the About page. Help text always mentions the ad. |
+| Setting                          | Purpose                                                                                                                                                                                                                                                            |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `VITE_BGPOOF_SITE_URL`           | Your canonical site origin for metadata, structured data, sitemap, and `www`/HTTP redirects. Other Worker hostnames receive `noindex`. Leave empty for no forced canonical redirect.                                                                               |
+| `VITE_BGPOOF_GA_ID`              | Your Google Analytics measurement ID. Empty disables Google Analytics.                                                                                                                                                                                             |
+| `VITE_BGPOOF_WEB_ANALYTICS`      | Set to `true` only when Cloudflare Web Analytics is enabled for your deployment. This controls the privacy disclosure; it does not enable the service.                                                                                                             |
+| `VITE_BGPOOF_PANEL_APP`          | App name for the project's own OpenPanel loader at `panel.offmylawn.com`. Leave empty in your own deployment; empty disables it and its disclosure on the About page.                                                                                              |
+| `VITE_BGPOOF_TURNSTILE_SITE_KEY` | Site key of a Managed-mode Cloudflare Turnstile widget, which shows a checkbox only to visitors it can't clear automatically. Pair it with the `TURNSTILE_SECRET` Worker secret; removal requests without a valid token then return 403. Empty disables the check. |
+| `VITE_BGPOOF_AD_URL`             | Ad link opened in a new tab before each image is processed. Leave empty in your own deployment or use your own link; empty disables the ad step and its disclosure on the About page. Help text always mentions the ad.                                            |
 
 These `VITE_` values are public and embedded at build time. Keep credentials in Wrangler authentication or Worker secrets, not in these settings or committed files. Changes require a rebuild.
 
@@ -78,7 +78,7 @@ No separate image API key is needed; Images is accessed through the Worker bindi
 
 Cloudflare Images' free allowance is 5,000 unique transformations a month. Past that, every new removal fails with a 503 and logs `background_removal_quota_exceeded`, so purchase Images & Stream in the Cloudflare dashboard before a public instance gets real traffic.
 
-Turnstile is optional. To enable it, create an invisible widget for your domain, set `VITE_BGPOOF_TURNSTILE_SITE_KEY`, and run `npx wrangler secret put TURNSTILE_SECRET --config wrangler.production.jsonc`. A Turnstile outage lets uploads through rather than stopping removal.
+Turnstile is optional. To enable it, create a Managed-mode widget for your domain, set `VITE_BGPOOF_TURNSTILE_SITE_KEY`, and run `npx wrangler secret put TURNSTILE_SECRET --config wrangler.production.jsonc`. A Turnstile outage lets uploads through rather than stopping removal.
 
 ### Optional native refinement
 
