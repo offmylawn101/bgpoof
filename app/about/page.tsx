@@ -107,7 +107,8 @@ export default function About() {
               <a href="https://www.cloudflare.com/products/turnstile/">
                 Cloudflare Turnstile
               </a>{' '}
-              check so that automated scripts can’t use the service. Turnstile
+              check so that automated scripts can’t use the service. If it can’t
+              confirm you automatically, it asks you to tick a box. Turnstile
               does not receive your photo.
             </p>
           </>
